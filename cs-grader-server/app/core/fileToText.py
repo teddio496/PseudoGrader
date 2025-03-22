@@ -4,7 +4,7 @@ import io
 from PIL import Image
 from google.cloud import vision
 import os
-from app.core.config import GOOGLE_APPLICATION_CREDENTIALS
+from app.core.config import settings
 from PyPDF2 import PdfReader
 import tempfile
 
