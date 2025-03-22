@@ -13,7 +13,7 @@ router = APIRouter()
 # Maximum file size (10MB)
 MAX_FILE_SIZE = 10 * 1024 * 1024
 # Maximum number of pages to process (default: 5)
-MAX_PAGES = 5
+MAX_PAGES = 10
 
 # Set Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
@@ -31,7 +31,7 @@ async def image_to_text(
     
     Args:
         file (UploadFile): The image or PDF file to process
-        max_pages (int): Maximum number of pages to process (default: 1, max: 5)
+        max_pages (int): Maximum number of pages to process (default: 1)
         
     Returns:
         Dict[str, Any]: A dictionary containing the extracted text from each page
