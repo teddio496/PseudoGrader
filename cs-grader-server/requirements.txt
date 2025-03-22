@@ -4,3 +4,6 @@ uvicorn==0.27.1
 python-dotenv==1.0.1
 google-generativeai==0.3.2
 cohere==4.51
+Pillow>=10.0.0
+python-multipart==0.0.9
+google-cloud-vision==3.4.4

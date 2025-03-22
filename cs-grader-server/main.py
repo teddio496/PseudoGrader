@@ -1,22 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import google.generativeai as genai
-from dotenv import load_dotenv
-import os
+from app.core.config import API_V1_STR, PROJECT_NAME
+from app.api.v1.api import api_router
 
-# Load environment variables
-load_dotenv()
-
-# Configure Gemini API
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_API_KEY environment variable is not set")
-
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
-
-app = FastAPI()
+app = FastAPI(
+    title=PROJECT_NAME,
+    openapi_url=f"{API_V1_STR}/openapi.json"
+)
 
 # Configure CORS
 app.add_middleware(
@@ -27,20 +17,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class PromptRequest(BaseModel):
-    prompt: str
+# Include the API router
+app.include_router(api_router, prefix=API_V1_STR)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to CS Grader API with Gemini integration"}
-
-@app.post("/generate")
-async def generate_response(request: PromptRequest):
-    try:
-        response = model.generate_content(request.prompt)
-        return {"response": response.text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": f"Welcome to {PROJECT_NAME}"}
 
 if __name__ == "__main__":
     import uvicorn
