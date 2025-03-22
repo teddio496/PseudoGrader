@@ -3,9 +3,14 @@ import os
 import google.generativeai as genai
 import cohere
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
+
+# get the directory of this config.py file
+config_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 class Settings(BaseSettings):
     # API Keys
@@ -18,12 +23,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "CS Grader API"
 
     # Model Configurations
-    GEMINI_MODEL_NAME: str = "models/gemini-2.0-pro-exp"
-    COHERE_MODEL: str = "command-a-03-2025"
+    GEMINI_MODEL_NAME: str = "models/gemini-exp-1206"
+    COHERE_MODEL_NAME: str = "command-a-03-2025"
     COHERE_EMBEDDING_MODEL: str = "embed-english-v3.0"
 
     # Database Configurations
-    CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", "./data/chroma")
+    CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", str(Path(config_dir) / ".." / ".." / "cs-grader-embeddings" / "chroma_db"))
 
     class Config:
         case_sensitive = True

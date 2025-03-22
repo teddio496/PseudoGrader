@@ -9,20 +9,16 @@ class PromptRequest(BaseModel):
         le=5,
         description="Maximum number of retries for JSON parsing (1-5, default: 3)"
     )
+    description: str
 
 class PromptResponse(BaseModel):
     code: str
     testing_code: str
-    model_used: str
 
 class GeminiErrorResponse(BaseModel):
     error: str
     details: Optional[str] = None
     retries_attempted: int
-
-class ImageToTextResponse(BaseModel):
-    text: str
-    model_used: str
 
 class PseudocodeEvaluationRequest(BaseModel):
     question: str = Field(..., description="The programming question or problem statement")
@@ -34,4 +30,3 @@ class PseudocodeEvaluationResponse(BaseModel):
     feedback: str = Field(..., description="Detailed feedback about the solution")
     logical_analysis: str = Field(..., description="Analysis of the logical flow and correctness")
     potential_issues: list[str] = Field(default_factory=list, description="List of potential issues or improvements")
-    model_used: str = Field(..., description="The model used for evaluation") 
