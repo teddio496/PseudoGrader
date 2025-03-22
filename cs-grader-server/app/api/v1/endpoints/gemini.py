@@ -19,20 +19,40 @@ async def generate_response(request: PromptRequest):
             "candidate_count": 1,
             "max_output_tokens": 2048
         }
+        
+        # Construct prompt with instructions
+        prompt = f"""Convert this pseudocode to Python code and generate test cases using pytest. Format the response as JSON with two fields:
+        - "code": containing just the Python implementation
+        - "testing_code": containing the pytest test cases
+        
+        Return only valid JSON with these two fields, no other text or formatting.
+
+Pseudocode:
+{request.prompt}"""
             
         # Generate response
         response = GEMINI_MODEL.generate_content(
-            contents=[{"text": request.prompt}],
+            contents=[{"text": prompt}],
             generation_config=generation_config
         )
         
         if not response.text:
             raise HTTPException(status_code=500, detail="No response generated")
-            
+        
+        # Extract just the Python code from the response
+        # Remove any test cases or other text
+        python_code = response.text.strip()
+        try:
+            import json
+            response_json = json.loads(response.text.strip())
+            python_code = response_json["code"]
+        except:
+            raise HTTPException(status_code=500, detail="Invalid JSON response from model")
+    
         return PromptResponse(
-            response=response.text,
+            response=python_code,
             model_used="models/gemini-2.0-pro-exp"
         )
     except Exception as e:
         print(f"Error in generate_response: {str(e)}")  # Debug logging
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
