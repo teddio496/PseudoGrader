@@ -14,11 +14,7 @@ async def get_complete_response(
     pseudocode_files: List[UploadFile] = File(...)
 ) -> Dict[str, Any]:
     """
-    Orchestrates the complete workflow by calling API endpoints:
-    1. Process input files using /process/process-files endpoint
-    2. Generate code using /gemini/generate endpoint
-    3. Evaluate logic using /pseudocode/evaluate endpoint
-    4. Combine all results into a single response
+    Orchestrates the complete workflow by calling API endpoints
     
     Args:
         request (Request): The FastAPI request object
