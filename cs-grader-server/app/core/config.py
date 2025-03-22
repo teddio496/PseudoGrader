@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     COHERE_MODEL: str = "command-a-03-2025"
     COHERE_EMBEDDING_MODEL: str = "embed-english-v3.0"
 
+    # Database Configurations
+    CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", "./data/chroma")
+
     class Config:
         case_sensitive = True
 

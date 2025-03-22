@@ -2,8 +2,10 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from app.core.config import settings, COHERE_CLIENT
 from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse
+from app.core.chroma_middleware import ChromaMiddleware
 
 router = APIRouter()
+chroma_middleware = ChromaMiddleware()
 
 @router.post("/evaluate", response_model=PseudocodeEvaluationResponse)
 async def evaluate_pseudocode(request: PseudocodeEvaluationRequest):
@@ -11,16 +13,20 @@ async def evaluate_pseudocode(request: PseudocodeEvaluationRequest):
     Evaluate pseudocode solutions using Cohere's embeddings and logical reasoning.
     """
     try:
-        # Generate embeddings for the question and pseudocode
-        question_embedding = COHERE_CLIENT.embed(
-            texts=[request.question],
-            model=settings.COHERE_EMBEDDING_MODEL
-        ).embeddings[0]
-        
-        pseudocode_embedding = COHERE_CLIENT.embed(
-            texts=[request.pseudocode],
-            model=settings.COHERE_EMBEDDING_MODEL
-        ).embeddings[0]
+        # Find similar solutions from the database based on the question
+        similar_solutions = chroma_middleware.find_similar_solutions(
+            question=request.question,
+            n_results=3
+        )
+
+        # Create a prompt for evaluation with similar solutions as context
+        similar_solutions_context = ""
+        if similar_solutions:
+            similar_solutions_context = "\nSimilar Solutions Found:\n"
+            for i, solution in enumerate(similar_solutions, 1):
+                similar_solutions_context += f"\nSolution {i} (Similarity: {solution['similarity']:.2f}):\n"
+                similar_solutions_context += f"Question: {solution['question']}\n"
+                similar_solutions_context += f"Pseudocode:\n{solution['pseudocode']}\n"
 
         # Create a prompt for evaluation
         evaluation_prompt = f"""
@@ -31,11 +37,14 @@ async def evaluate_pseudocode(request: PseudocodeEvaluationRequest):
         
         {f'Additional Context: {request.context}' if request.context else ''}
         
+        {similar_solutions_context}
+        
         Please evaluate this pseudocode solution considering:
         1. Does it correctly address the question?
         2. Is the logical flow sound?
         3. Are there any potential issues or edge cases not handled?
         4. Could the solution be improved?
+        5. How does it compare to the similar solutions found?
         
         Provide a detailed evaluation with a score from 0 to 1.
         """
