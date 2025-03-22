@@ -9,7 +9,7 @@ router = APIRouter()
 chroma_middleware: ChromaMiddleware = ChromaMiddleware()
 
 @router.post("/evaluate", response_model=PseudocodeEvaluationResponse)
-async def evaluate_pseudocode(request: PseudocodeEvaluationRequest):
+async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
     """
     Evaluate pseudocode solutions using Cohere's embeddings and logical reasoning.
     """

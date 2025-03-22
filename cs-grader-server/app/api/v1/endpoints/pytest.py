@@ -27,7 +27,7 @@ def check_docker_available():
 
 def create_dockerfile():
     return """
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
