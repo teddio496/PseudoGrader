@@ -193,6 +193,30 @@ export default function PageDibya() {
     }
   };
 
+  // Function to get text content from a file
+  const getFileContent = async (filename: string): Promise<string> => {
+    try {
+      const response = await fetch('/api/get_text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get file content');
+      }
+
+      const result = await response.json();
+      return result.content;
+    } catch (err) {
+      console.error('Error getting file content:', err);
+      throw err;
+    }
+  };
+
   return (
     <div className="min-h-screen p-8 pb-20 gap-6 sm:p-20">
       <div className="w-full flex justify-center items-center mb-12">
