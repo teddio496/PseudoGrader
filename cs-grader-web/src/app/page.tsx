@@ -52,7 +52,6 @@ export default function Home() {
         {activeQuestion ? (
           <FileUploader
             key={activeQuestion.id}
-            questionId={activeQuestion.id}
             onQuestionUpdate={(updates) => handleQuestionUpdate(activeQuestion.id, updates)}
             initialStatus={activeQuestion.status}
           />
