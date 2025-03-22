@@ -5,7 +5,8 @@ class PromptRequest(BaseModel):
     prompt: str
 
 class PromptResponse(BaseModel):
-    response: str
+    code: str
+    testing_code: str
     model_used: str
 
 class ImageToTextRequest(BaseModel):
