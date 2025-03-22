@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import generateCode, InputToText, pytest, processInput, evaluateLogic, getResponse
+from app.api.v1.endpoints import generateCode, InputToText, pytest, evaluateLogic, getResponse
 from app.core.fileToText import router as imageToText_router
 
 api_router = APIRouter()
