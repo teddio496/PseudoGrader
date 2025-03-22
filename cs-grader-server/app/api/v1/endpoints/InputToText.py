@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Request
-from typing import Dict, Any, List
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Query
+from typing import Dict, Any, List, Optional
 from google.cloud import vision
 import os
 from app.core.config import settings
@@ -19,7 +19,10 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDE
 client = vision.ImageAnnotatorClient()
 
 @router.post("/files-to-text")
-async def input_To_Text(files: List[UploadFile] = File(...), request: Request = None) -> Dict[str, Any]:
+async def input_To_Text(
+    files: List[UploadFile] = File(...),
+    request: Request = None
+) -> Dict[str, Any]:
     """
     Convert multiple image or PDF files to text using Google Cloud Vision API.
     
@@ -80,7 +83,18 @@ async def input_To_Text(files: List[UploadFile] = File(...), request: Request = 
                 })
                 continue
             
-        return {"results": results}
+        # Create an array of content strings, one for each file
+        content = []
+        for result in results:
+            if "error" not in result and "text" in result:
+                content.append(result["text"])
+            elif "error" in result:
+                content.append(f"[Error in {result['filename']}: {result['error']}]")
+        
+        # Return in the format expected by getResponse.py
+        return {
+            "content": content
+        }
         
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)

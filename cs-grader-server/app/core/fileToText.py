@@ -18,14 +18,12 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDE
 # Initialize Google Cloud Vision client
 client = vision.ImageAnnotatorClient()
 
-async def process_file_to_text(file: UploadFile, start_page: int = None, end_page: int = None) -> Dict[str, Any]:
+async def process_file_to_text(file: UploadFile) -> Dict[str, Any]:
     """
     Convert an image, PDF, or text file to text using Google Cloud Vision API.
     
     Args:
         file (UploadFile): The image, PDF, or text file to process
-        start_page (int, optional): Starting page number for PDFs (1-based index)
-        end_page (int, optional): Ending page number for PDFs (1-based index)
         
     Returns:
         Dict[str, Any]: A dictionary containing the extracted text
@@ -74,33 +72,10 @@ async def process_file_to_text(file: UploadFile, start_page: int = None, end_pag
 
                 # Read PDF
                 pdf_reader = PdfReader(temp_pdf_path)
-                total_pages = len(pdf_reader.pages)
                 
-                # Validate page range
-                if start_page is not None and (start_page < 1 or start_page > total_pages):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Start page must be between 1 and {total_pages}"
-                    )
-                if end_page is not None and (end_page < 1 or end_page > total_pages):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"End page must be between 1 and {total_pages}"
-                    )
-                if start_page is not None and end_page is not None and start_page > end_page:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Start page must be less than or equal to end page"
-                    )
-                
-                # Set page range
-                start_idx = (start_page - 1) if start_page is not None else 0
-                end_idx = end_page if end_page is not None else total_pages
-                
-                # Process each page and combine text
+                # Process all pages and combine text
                 combined_text = []
-                for i in range(start_idx, end_idx):
-                    page = pdf_reader.pages[i]
+                for page in pdf_reader.pages:
                     text = page.extract_text()
                     if text:
                         combined_text.append(text)

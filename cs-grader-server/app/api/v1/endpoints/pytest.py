@@ -1,15 +1,29 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from typing import List
+from fastapi import APIRouter, HTTPException
+from typing import Optional
 import tempfile
 import os
 import docker
-import shutil
 import json
 from pathlib import Path
 from app.core.logging import setup_logger
+from pydantic import BaseModel
+import subprocess
 
 router = APIRouter()
 logger = setup_logger("pytest")
+
+class CodeRequest(BaseModel):
+    code: str
+    test_code: Optional[str] = None
+
+def check_docker_available():
+    """Check if Docker is running and accessible."""
+    try:
+        # Try to run docker info command
+        subprocess.run(["docker", "info"], capture_output=True, check=True, shell=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 def create_dockerfile():
     return """
@@ -24,19 +38,33 @@ COPY . .
 CMD ["pytest", "-v", "--json-report"]
 """
 
-def run_pytest_in_container(files: List[UploadFile]):
-    logger.info(f"Starting pytest run with {len(files)} files")
+def run_pytest_in_container(code: str, test_code: Optional[str] = None):
+    logger.info("Starting pytest run with code string")
+    
+    # Check if Docker is available
+    if not check_docker_available():
+        logger.error("Docker is not running or not accessible")
+        raise HTTPException(
+            status_code=503,
+            detail="Docker is not running. Please start Docker and try again."
+        )
     
     # Create a temporary directory for the test files
     with tempfile.TemporaryDirectory() as temp_dir:
         logger.debug(f"Created temporary directory: {temp_dir}")
         
-        # Save uploaded files
-        for file in files:
-            file_path = os.path.join(temp_dir, file.filename)
-            logger.debug(f"Saving file: {file.filename}")
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+        # Save the main code
+        main_path = os.path.join(temp_dir, "main.py")
+        logger.debug("Saving main code")
+        with open(main_path, "w") as f:
+            f.write(code)
+        
+        # Save the test code if provided
+        if test_code:
+            test_path = os.path.join(temp_dir, "test_main.py")
+            logger.debug("Saving test code")
+            with open(test_path, "w") as f:
+                f.write(test_code)
         
         # Create Dockerfile
         dockerfile_path = os.path.join(temp_dir, "Dockerfile")
@@ -45,7 +73,14 @@ def run_pytest_in_container(files: List[UploadFile]):
             f.write(create_dockerfile())
         
         # Build and run Docker container
-        client = docker.from_env()
+        try:
+            client = docker.from_env()
+        except docker.errors.DockerException as e:
+            logger.error(f"Failed to connect to Docker: {str(e)}")
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to connect to Docker. Please ensure Docker is running and accessible."
+            )
         
         try:
             # Build the image
@@ -135,24 +170,15 @@ def run_pytest_in_container(files: List[UploadFile]):
                 logger.warning(f"Failed to clean up Docker image: {str(e)}")
 
 @router.post("/run")
-async def run_pytest(files: List[UploadFile] = File(...)):
+async def run_pytest(request: CodeRequest):
     """
-    Run pytest on uploaded Python files in a Docker container.
+    Run pytest on provided code string in a Docker container.
     """
     logger.info("Received request to run pytest")
     
-    if not files:
-        logger.warning("No files provided in request")
-        raise HTTPException(status_code=400, detail="No files provided")
+    if not request.code:
+        logger.warning("No code provided in request")
+        raise HTTPException(status_code=400, detail="No code provided")
     
-    # Validate file extensions
-    for file in files:
-        if not file.filename.endswith('.py'):
-            logger.warning(f"Invalid file type received: {file.filename}")
-            raise HTTPException(
-                status_code=400,
-                detail=f"File {file.filename} is not a Python file"
-            )
-    
-    logger.info(f"Processing {len(files)} Python files")
-    return run_pytest_in_container(files) 
+    logger.info("Processing code string")
+    return run_pytest_in_container(request.code, request.test_code) 
