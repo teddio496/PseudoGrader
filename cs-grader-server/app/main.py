@@ -5,7 +5,11 @@ from app.api.v1.api import api_router
 
 app = FastAPI(
     title=PROJECT_NAME,
-    openapi_url=f"{API_V1_STR}/openapi.json"
+    description="API for CS Grader with Gemini and Cohere integration",
+    version="1.0.0",
+    openapi_url=f"{API_V1_STR}/openapi.json",
+    docs_url=f"{API_V1_STR}/docs",  # Swagger UI endpoint
+    redoc_url=f"{API_V1_STR}/redoc",  # ReDoc endpoint
 )
 
 # Configure CORS
@@ -21,4 +25,9 @@ app.include_router(api_router, prefix=API_V1_STR)
 
 @app.get("/")
 async def root():
-    return {"message": f"Welcome to {PROJECT_NAME}"} 
+    return {
+        "message": f"Welcome to {PROJECT_NAME}",
+        "docs_url": f"{API_V1_STR}/docs",
+        "redoc_url": f"{API_V1_STR}/redoc",
+        "openapi_url": f"{API_V1_STR}/openapi.json"
+    } 
