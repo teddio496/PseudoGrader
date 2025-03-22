@@ -25,7 +25,7 @@ async def evaluate_pseudocode(request: PseudocodeEvaluationRequest):
 
         # Create a prompt for evaluation with similar solutions as context
         similar_solutions_context = ""
-        if suggested_algorithms:
+        if suggested_algorithms and suggested_algorithms[0]['similarity'] >= 0.5:
             similar_solutions_context = "\nSimilar Solutions Found:\n"
             for i, solution in enumerate(suggested_algorithms, 1):
                 similar_solutions_context += f"\nSolution {i} (Similarity: {solution['similarity']:.2f}):\n"
@@ -38,8 +38,6 @@ async def evaluate_pseudocode(request: PseudocodeEvaluationRequest):
         
         Pseudocode Solution:
         {request.pseudocode}
-        
-        {f'Additional Context: {request.context}' if request.context else ''}
         
         {similar_solutions_context}
         
