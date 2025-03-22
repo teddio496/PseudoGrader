@@ -21,11 +21,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
 # Initialize Google Cloud Vision client
 client = vision.ImageAnnotatorClient()
 
-@router.post("/image-to-text")
-async def image_to_text(
-    file: UploadFile = File(...),
-    max_pages: int = Query(default=1, le=MAX_PAGES, description=f"Maximum number of pages to process (max {MAX_PAGES})")
-) -> Dict[str, Any]:
+async def process_file_to_text(file: UploadFile, max_pages: int = 1) -> Dict[str, Any]:
     """
     Convert an image or PDF file to text using Google Cloud Vision API.
     
@@ -137,3 +133,13 @@ async def image_to_text(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
         )
+
+@router.post("/image-to-text")
+async def image_to_text_endpoint(
+    file: UploadFile = File(...),
+    max_pages: int = Query(default=1, le=MAX_PAGES, description=f"Maximum number of pages to process (max {MAX_PAGES})")
+) -> Dict[str, Any]:
+    """
+    API endpoint to convert an image or PDF file to text.
+    """
+    return await process_file_to_text(file, max_pages) 

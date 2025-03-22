@@ -29,6 +29,7 @@ GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-pro-exp')
 
 # Configure Cohere API
 COHERE_CLIENT = cohere.Client(api_key=COHERE_API_KEY)
+COHERE_MODEL = "command-a-03-2025"
 
 # API Config
 API_V1_STR = "/api/v1"

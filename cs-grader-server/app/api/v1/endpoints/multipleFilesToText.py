@@ -6,15 +6,13 @@ from google.cloud import vision
 import os
 from app.core.config import GOOGLE_APPLICATION_CREDENTIALS
 import logging
+from app.core.fileToText import process_file_to_text, MAX_FILE_SIZE
 
 router = APIRouter()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Maximum file size (10MB)
-MAX_FILE_SIZE = 10 * 1024 * 1024
 
 # Set Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
@@ -25,10 +23,10 @@ client = vision.ImageAnnotatorClient()
 @router.post("/multiple-files-to-text")
 async def multiple_files_to_text(files: List[UploadFile] = File(...), request: Request = None) -> Dict[str, Any]:
     """
-    Convert multiple image files to text using Google Cloud Vision API.
+    Convert multiple image or PDF files to text using Google Cloud Vision API.
     
     Args:
-        files (List[UploadFile]): List of image files to process
+        files (List[UploadFile]): List of image or PDF files to process
         request (Request): The FastAPI request object for debugging
         
     Returns:
@@ -58,56 +56,31 @@ async def multiple_files_to_text(files: List[UploadFile] = File(...), request: R
         for file in files:
             logger.info(f"Processing file: {file.filename}, content_type: {file.content_type}")
             
-            # Validate file size
-            content = await file.read()
-            if len(content) > MAX_FILE_SIZE:
-                logger.error(f"File {file.filename} exceeds size limit")
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File {file.filename} exceeds maximum limit of {MAX_FILE_SIZE/1024/1024}MB"
-                )
+            try:
+                # Use the process_file_to_text function to process each file
+                result = await process_file_to_text(file)
                 
-            # Validate file type
-            if not file.content_type.startswith('image/'):
-                logger.error(f"Invalid file type for {file.filename}: {file.content_type}")
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File {file.filename} must be an image"
-                )
-            
-            # Create image object for Google Cloud Vision
-            image = vision.Image(content=content)
-            
-            # Perform text detection
-            response = client.text_detection(image=image)
-            texts = response.text_annotations
-            
-            if not texts:
-                logger.warning(f"No text detected in {file.filename}")
+                # Add filename to the result
+                result["filename"] = file.filename
+                results.append(result)
+                
+            except HTTPException as e:
+                # Log the error but continue processing other files
+                logger.error(f"Error processing {file.filename}: {str(e)}")
                 results.append({
                     "filename": file.filename,
-                    "text": "",
-                    "status": "no_text_detected"
+                    "error": str(e.detail),
+                    "status": "error"
                 })
                 continue
-                
-            # Get the full text (first annotation contains all text)
-            extracted_text = texts[0].description
-            
-            if response.error.message:
-                logger.error(f"Google Cloud Vision error for {file.filename}: {response.error.message}")
+            except Exception as e:
+                logger.error(f"Unexpected error processing {file.filename}: {str(e)}")
                 results.append({
                     "filename": file.filename,
-                    "text": "",
-                    "status": f"error: {response.error.message}"
+                    "error": str(e),
+                    "status": "error"
                 })
                 continue
-                
-            results.append({
-                "filename": file.filename,
-                "text": extracted_text,
-                "status": "success"
-            })
             
         return {"results": results}
         

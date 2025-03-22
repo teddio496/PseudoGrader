@@ -55,11 +55,11 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             prompt = f"""Convert this pseudocode to Python code and generate test cases using pytest. Format the response as JSON with two fields:
             - "code": containing just the Python implementation
             - "testing_code": containing the pytest test cases
-            
+
             Return only valid JSON with these two fields, no other text or formatting.
 
-Pseudocode:
-{request.prompt}"""
+            Pseudocode:
+            {request.prompt}"""
                 
             # Generate response
             response = GEMINI_MODEL.generate_content(
