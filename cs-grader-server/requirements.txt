@@ -10,3 +10,4 @@ python-multipart==0.0.9
 google-cloud-vision==3.4.4
 docker==7.1.0
 colorama==0.4.6
+pydantic-settings==2.2.1

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
-from app.core.config import GEMINI_MODEL, GOOGLE_API_KEY
+from app.core.config import settings
 from app.core.logging import setup_logger
 import google.generativeai as genai
 
@@ -40,7 +40,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
     while retry_count < max_retries:
         try:
             # Ensure API is configured
-            genai.configure(api_key=GOOGLE_API_KEY, transport="rest")
+            genai.configure(api_key=settings.GOOGLE_API_KEY, transport="rest")
             
             # Use preset generation config
             generation_config = {
@@ -62,7 +62,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             {request.prompt}"""
                 
             # Generate response
-            response = GEMINI_MODEL.generate_content(
+            response = settings.GEMINI_MODEL.generate_content(
                 contents=[{"text": prompt}],
                 generation_config=generation_config
             )
@@ -90,7 +90,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
                 return PromptResponse(
                     code=python_code,
                     testing_code=testing_code,
-                    model_used="models/gemini-2.0-pro-exp"
+                    model_used=settings.GEMINI_MODEL_NAME
                 )
             except json.JSONDecodeError as e:
                 retry_count += 1

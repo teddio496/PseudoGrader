@@ -4,7 +4,7 @@ import io
 from PIL import Image
 from google.cloud import vision
 import os
-from app.core.config import GOOGLE_APPLICATION_CREDENTIALS
+from app.core.config import settings
 import logging
 from app.core.fileToText import process_file_to_text, MAX_FILE_SIZE
 
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Set Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
 
 # Initialize Google Cloud Vision client
 client = vision.ImageAnnotatorClient()

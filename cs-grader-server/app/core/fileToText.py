@@ -4,7 +4,7 @@ import io
 from PIL import Image
 from google.cloud import vision
 import os
-from app.core.config import GOOGLE_APPLICATION_CREDENTIALS
+from app.core.config import settings
 from pdf2image import convert_from_bytes
 import tempfile
 
@@ -16,7 +16,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 MAX_PAGES = 10
 
 # Set Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
 
 # Initialize Google Cloud Vision client
 client = vision.ImageAnnotatorClient()
