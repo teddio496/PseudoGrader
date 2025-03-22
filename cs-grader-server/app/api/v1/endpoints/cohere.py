@@ -11,11 +11,10 @@ async def generate_response(request: PromptRequest):
             prompt=request.prompt,
             max_tokens=2048,
             temperature=0.7,
-            model=settings.COHERE_MODEL
+            model=settings.COHERE_MODEL_NAME
         )
         return PromptResponse(
             response=response.generations[0].text,
-            model_used=settings.COHERE_MODEL
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

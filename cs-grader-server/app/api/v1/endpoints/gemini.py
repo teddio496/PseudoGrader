@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
-from app.core.config import settings
+from app.core.config import settings, GEMINI_MODEL
 from app.core.logging import setup_logger
 import google.generativeai as genai
 
@@ -44,25 +44,38 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             
             # Use preset generation config
             generation_config = {
-                "temperature": 0.7,
-                "top_p": 0.8,
-                "top_k": 40,
+                "temperature": 0.0,     
+                "top_p": 1.0,       
+                "top_k": 0,     
                 "candidate_count": 1,
-                "max_output_tokens": 2048
+                "max_output_tokens": 10000
             }
             
             # Construct prompt with instructions
-            prompt = f"""Convert this pseudocode to Python code and generate test cases using pytest. Format the response as JSON with two fields:
-            - "code": containing just the Python implementation
-            - "testing_code": containing the pytest test cases
+            prompt = f"""
+            You are given a pseudocode and a question description as input, and your task is to:
+            1. Convert the pseudocode into Python code WITHOUT MODIFYING THE LOGIC — EVEN IF THE LOGIC IS FLAWED OR INCORRECT.
+            2. Write corresponding pytest test cases that reflect the generated code's behavior as-is.
 
-            Return only valid JSON with these two fields, no other text or formatting.
+            You must return a valid JSON object with exactly two fields:
+            - "code": A string containing only the full Python implementation.
+            - "testing_code": A string containing only the pytest test cases.
+
+            Important Requirements:
+            1. DO NOT attempt to fix or reinterpret the logic in the pseudocode — your job is to faithfully convert it to Python syntax ONLY.
+            2. Return only valid JSON (no markdown code fences, no extra text, no explanations).
+            3. Do not include any additional keys or text outside of the required fields.
+            4. The test cases in "testing_code" should be runnable with `pytest` and based strictly on the behavior of the Python code you generated from the pseudocode.
+
+            Question Description:
+            {request.description}
 
             Pseudocode:
-            {request.prompt}"""
+            {request.prompt}
+            """
                 
             # Generate response
-            response = settings.GEMINI_MODEL.generate_content(
+            response = GEMINI_MODEL.generate_content(
                 contents=[{"text": prompt}],
                 generation_config=generation_config
             )
@@ -90,7 +103,6 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
                 return PromptResponse(
                     code=python_code,
                     testing_code=testing_code,
-                    model_used=settings.GEMINI_MODEL_NAME
                 )
             except json.JSONDecodeError as e:
                 retry_count += 1

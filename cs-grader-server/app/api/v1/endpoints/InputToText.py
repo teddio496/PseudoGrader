@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 from typing import Dict, Any, List
-import io
-from PIL import Image
 from google.cloud import vision
 import os
 from app.core.config import settings
