@@ -20,8 +20,8 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
 # Initialize Google Cloud Vision client
 client = vision.ImageAnnotatorClient()
 
-@router.post("/multiple-files-to-text")
-async def multiple_files_to_text(files: List[UploadFile] = File(...), request: Request = None) -> Dict[str, Any]:
+@router.post("/files-to-text")
+async def input_To_Text(files: List[UploadFile] = File(...), request: Request = None) -> Dict[str, Any]:
     """
     Convert multiple image or PDF files to text using Google Cloud Vision API.
     
@@ -89,4 +89,4 @@ async def multiple_files_to_text(files: List[UploadFile] = File(...), request: R
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
-        ) 
+        )

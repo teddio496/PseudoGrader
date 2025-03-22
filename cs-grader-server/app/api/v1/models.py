@@ -20,10 +20,6 @@ class GeminiErrorResponse(BaseModel):
     details: Optional[str] = None
     retries_attempted: int
 
-class ImageToTextRequest(BaseModel):
-    image_url: str
-    prompt: Optional[str] = None
-
 class ImageToTextResponse(BaseModel):
     text: str
     model_used: str 

@@ -5,15 +5,13 @@ from PIL import Image
 from google.cloud import vision
 import os
 from app.core.config import GOOGLE_APPLICATION_CREDENTIALS
-from pdf2image import convert_from_bytes
+from PyPDF2 import PdfReader
 import tempfile
 
 router = APIRouter()
 
 # Maximum file size (10MB)
 MAX_FILE_SIZE = 10 * 1024 * 1024
-# Maximum number of pages to process (default: 5)
-MAX_PAGES = 10
 
 # Set Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
@@ -21,16 +19,17 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_APPLICATION_CREDENTIALS
 # Initialize Google Cloud Vision client
 client = vision.ImageAnnotatorClient()
 
-async def process_file_to_text(file: UploadFile, max_pages: int = 1) -> Dict[str, Any]:
+async def process_file_to_text(file: UploadFile, start_page: int = None, end_page: int = None) -> Dict[str, Any]:
     """
-    Convert an image or PDF file to text using Google Cloud Vision API.
+    Convert an image, PDF, or text file to text using Google Cloud Vision API.
     
     Args:
-        file (UploadFile): The image or PDF file to process
-        max_pages (int): Maximum number of pages to process (default: 1)
+        file (UploadFile): The image, PDF, or text file to process
+        start_page (int, optional): Starting page number for PDFs (1-based index)
+        end_page (int, optional): Ending page number for PDFs (1-based index)
         
     Returns:
-        Dict[str, Any]: A dictionary containing the extracted text from each page
+        Dict[str, Any]: A dictionary containing the extracted text
         
     Raises:
         HTTPException: If the file is invalid or processing fails
@@ -45,58 +44,82 @@ async def process_file_to_text(file: UploadFile, max_pages: int = 1) -> Dict[str
             )
             
         # Validate file type
-        if not (file.content_type.startswith('image/') or file.content_type == 'application/pdf'):
+        if not (file.content_type.startswith('image/') or 
+                file.content_type == 'application/pdf' or 
+                file.content_type == 'text/plain'):
             raise HTTPException(
                 status_code=400,
-                detail="File must be an image or PDF"
+                detail="File must be an image, PDF, or text file"
             )
+
+        # Handle text files
+        if file.content_type == 'text/plain':
+            try:
+                text_content = content.decode('utf-8')
+                return {
+                    "text": text_content
+                }
+            except UnicodeDecodeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid text file encoding. Please use UTF-8 encoding."
+                )
 
         # Handle PDF files
         if file.content_type == 'application/pdf':
             try:
-                # Convert PDF to images
-                images = convert_from_bytes(content, first_page=1, last_page=max_pages)
-                if not images:
+                # Create a temporary file to store the PDF
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+                    temp_pdf.write(content)
+                    temp_pdf_path = temp_pdf.name
+
+                # Read PDF
+                pdf_reader = PdfReader(temp_pdf_path)
+                total_pages = len(pdf_reader.pages)
+                
+                # Validate page range
+                if start_page is not None and (start_page < 1 or start_page > total_pages):
                     raise HTTPException(
                         status_code=400,
-                        detail="Failed to convert PDF to image"
+                        detail=f"Start page must be between 1 and {total_pages}"
+                    )
+                if end_page is not None and (end_page < 1 or end_page > total_pages):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"End page must be between 1 and {total_pages}"
+                    )
+                if start_page is not None and end_page is not None and start_page > end_page:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Start page must be less than or equal to end page"
                     )
                 
-                # Process each page
-                pages_text = []
-                for i, image in enumerate(images, 1):
-                    # Convert page to bytes
-                    img_byte_arr = io.BytesIO()
-                    image.save(img_byte_arr, format='PNG')
-                    page_content = img_byte_arr.getvalue()
-                    
-                    # Process the page
-                    page_image = vision.Image(content=page_content)
-                    response = client.text_detection(image=page_image)
-                    texts = response.text_annotations
-                    
-                    if not texts:
-                        pages_text.append({"page": i, "text": ""})
-                        continue
-                        
-                    if response.error.message:
-                        raise HTTPException(
-                            status_code=500,
-                            detail=f"Error from Google Cloud Vision on page {i}: {response.error.message}"
-                        )
-                    
-                    pages_text.append({
-                        "page": i,
-                        "text": texts[0].description
-                    })
+                # Set page range
+                start_idx = (start_page - 1) if start_page is not None else 0
+                end_idx = end_page if end_page is not None else total_pages
+                
+                # Process each page and combine text
+                combined_text = []
+                for i in range(start_idx, end_idx):
+                    page = pdf_reader.pages[i]
+                    text = page.extract_text()
+                    if text:
+                        combined_text.append(text)
+                
+                # Clean up temporary file
+                os.unlink(temp_pdf_path)
                 
                 return {
-                    "total_pages": len(images),
-                    "processed_pages": len(pages_text),
-                    "pages": pages_text
+                    "text": "\n".join(combined_text)
                 }
                 
             except Exception as e:
+                # Clean up temporary file if it exists
+                if 'temp_pdf_path' in locals():
+                    try:
+                        os.unlink(temp_pdf_path)
+                    except:
+                        pass
                 raise HTTPException(
                     status_code=400,
                     detail=f"Failed to process PDF: {str(e)}"
@@ -120,12 +143,7 @@ async def process_file_to_text(file: UploadFile, max_pages: int = 1) -> Dict[str
                 )
                 
             return {
-                "total_pages": 1,
-                "processed_pages": 1,
-                "pages": [{
-                    "page": 1,
-                    "text": texts[0].description
-                }]
+                "text": texts[0].description
             }
         
     except Exception as e:
@@ -133,13 +151,3 @@ async def process_file_to_text(file: UploadFile, max_pages: int = 1) -> Dict[str
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
         )
-
-@router.post("/image-to-text")
-async def image_to_text_endpoint(
-    file: UploadFile = File(...),
-    max_pages: int = Query(default=1, le=MAX_PAGES, description=f"Maximum number of pages to process (max {MAX_PAGES})")
-) -> Dict[str, Any]:
-    """
-    API endpoint to convert an image or PDF file to text.
-    """
-    return await process_file_to_text(file, max_pages) 
