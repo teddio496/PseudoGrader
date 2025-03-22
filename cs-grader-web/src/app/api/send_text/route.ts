@@ -1,43 +1,35 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
 
 export async function POST(request: Request) {
   try {
-    // Get the textfiles directory path
-    const textfilesDir = path.join(process.cwd(), 'cs-grader-web', 'textfiles');
-    
-    // Read all files in the directory
-    const files = await fs.readdir(textfilesDir);
-    const textFiles = files.filter(file => file.endsWith('.txt'));
+    // Get the form data from the request
+    const formData = await request.formData();
+    const files = formData.getAll('files');
 
-    if (textFiles.length === 0) {
+    if (files.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'No text files found' },
+        { success: false, error: 'No files provided' },
         { status: 400 }
       );
     }
 
-    // Create FormData and add files
-    const formData = new FormData();
+    // Create a new FormData to send to FastAPI
+    const fastApiFormData = new FormData();
     
-    // Read all files and add them to FormData
-    for (const filename of textFiles) {
-      const filePath = path.join(textfilesDir, filename);
-      const fileContent = await fs.readFile(filePath);
-      
-      // Create a Blob from the file content
-      const blob = new Blob([fileContent], { type: 'text/plain' });
-      formData.append('files', blob, filename);
+    // Add each file to the FormData
+    for (const file of files) {
+      if (file instanceof File) {
+        fastApiFormData.append('files', file);
+      }
     }
 
     // Log what we're sending
-    console.log('Sending files:', textFiles);
+    console.log('Sending files:', files.map((f: any) => f.name));
 
     // Send files to the FastAPI endpoint
     const response = await fetch('http://localhost:8000/api/v1/input/files-to-text', {
       method: 'POST',
-      body: formData  // Send as FormData
+      body: fastApiFormData
     });
 
     if (!response.ok) {
@@ -46,7 +38,7 @@ export async function POST(request: Request) {
       try {
         const errorData = await response.json();
         errorMessage = errorData.detail || JSON.stringify(errorData);
-      } catch (e) {
+      } catch {
         // If we can't parse as JSON, get the text
         errorMessage = await response.text();
       }
@@ -65,7 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Files sent successfully',
-      files_sent: textFiles.length,
+      files_sent: files.length,
       result: result
     });
 
