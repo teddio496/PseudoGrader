@@ -53,8 +53,13 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             
             # First call: Generate Python code
             code_prompt = f"""
-            Convert this pseudocode into Python code WITHOUT MODIFYING THE LOGIC — EVEN IF THE LOGIC IS FLAWED OR INCORRECT.
-            Return ONLY the Python code, no explanations or additional text.
+            Convert the following pseudocode into Python code EXACTLY as specified. 
+            Do not fix, re-arrange, or optimize anything. 
+            If the pseudocode is contradictory or syntactically incorrect, replicate that as closely as possible in Python. 
+            The goal is a near-verbatim translation from pseudocode into Python. 
+            If any step in the pseudocode is ambiguous, maintain the same structure and variable usage. 
+            Do not add error handling or assume missing details. 
+            Return ONLY the Python code.
 
             Question Description:
             {request.description}
@@ -72,6 +77,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
                 raise HTTPException(status_code=500, detail="No code generated")
             
             python_code = code_response.text.strip()
+            python_code = python_code.replace("```python", "").replace("```", "").strip()
             
             # Second call: Generate test cases
             test_prompt = f"""
@@ -91,6 +97,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
                 raise HTTPException(status_code=500, detail="No test cases generated")
             
             testing_code = test_response.text.strip()
+            testing_code = testing_code.replace("```python", "").replace("```", "").strip()
             
             # Return the combined response
             return PromptResponse(
