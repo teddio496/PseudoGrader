@@ -2,7 +2,7 @@ from cohere import JsonObjectResponseFormatV2, UserChatMessageV2
 from app.core.chroma_middleware import ChromaMiddleware
 from fastapi import APIRouter, HTTPException
 from app.core.config import COHERE_CLIENT, settings
-from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, SimilarSolution, LogicalAnalysis
+from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, LogicalAnalysis
 from app.core.logging import setup_logger
 import json
 

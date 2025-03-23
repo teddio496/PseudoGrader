@@ -794,14 +794,16 @@ export default function FileUploader({
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <h4 className="text-2xl text-[#E0E0E0] font-medium mb-2">Potential Issues</h4>
-                        <ul className="list-disc list-inside text-[#B0B0B0]">
-                          {analysisResult.logic_evaluation?.potential_issues.map((issue, index) => (
-                            <li key={index}>{issue}</li>
-                          ))}
-                        </ul>
-                      </div>
+                      { analysisResult.logic_evaluation?.potential_issues &&
+                        <div>
+                          <h4 className="text-2xl text-[#E0E0E0] font-medium mb-2 mt-4">Potential Issues</h4>
+                          <ul className="list-disc list-inside text-[#B0B0B0]">
+                            {analysisResult.logic_evaluation.potential_issues.map((issue, index) => (
+                              <li key={index}>{issue}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      }
                       {analysisResult.logic_evaluation?.similar_solutions && 
                        analysisResult.logic_evaluation.similar_solutions.length > 0 && (
                         <div>

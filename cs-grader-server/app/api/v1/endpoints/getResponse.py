@@ -97,7 +97,7 @@ async def get_complete_response(
         
         # Run generate code and evaluate logic concurrently
         logger.info("Generating code and evaluating logic...")
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             async def generate_code():
                 response = await client.post(
                     f"{base_url}/api/v1/generateCode/generate",
