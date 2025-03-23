@@ -213,15 +213,20 @@ export default function FileUploader({
         // Create preview URL for images
         if (file.type.startsWith('image/')) {
           newFile.preview = URL.createObjectURL(file);
+          // When it's an image, ensure content is stored as base64 data
+          if (typeof newFile.content === 'string' && newFile.content.startsWith('blob:')) {
+            // If somehow we got a blob URL instead of data, read as data URL again
+            const imgReader = new FileReader();
+            imgReader.onload = (imgEvent) => {
+              newFile.content = imgEvent.target?.result || '';
+              updateFiles(newFile, isContext);
+            };
+            imgReader.readAsDataURL(file);
+            return;
+          }
         }
 
-        if (isContext) {
-          setContextFiles(prev => [...prev, newFile]);
-          onQuestionUpdate({ contextFiles: [...contextFiles, newFile] });
-        } else {
-          setPseudocodeFiles(prev => [...prev, newFile]);
-          onQuestionUpdate({ pseudocodeFiles: [...pseudocodeFiles, newFile] });
-        }
+        updateFiles(newFile, isContext);
       };
 
       if (file.type.startsWith('image/')) {
@@ -230,6 +235,17 @@ export default function FileUploader({
         reader.readAsText(file);
       }
     });
+  };
+
+  // Helper function to update files state
+  const updateFiles = (newFile: FileItem, isContext: boolean) => {
+    if (isContext) {
+      setContextFiles(prev => [...prev, newFile]);
+      onQuestionUpdate({ contextFiles: [...contextFiles, newFile] });
+    } else {
+      setPseudocodeFiles(prev => [...prev, newFile]);
+      onQuestionUpdate({ pseudocodeFiles: [...pseudocodeFiles, newFile] });
+    }
   };
 
   const handleContextSave = () => {
@@ -261,8 +277,19 @@ export default function FileUploader({
       
       for (const file of contextFiles) {
         if (file.name !== 'context.txt') {
-          const blob = new Blob([file.content], { type: file.type });
-          formData.append('question_files', new File([blob], file.name, { type: file.type }));
+          // Handle different content types appropriately
+          let fileBlob;
+          
+          if (typeof file.content === 'string' && file.content.startsWith('data:')) {
+            // Handle base64 data URLs for images
+            const base64Data = file.content.split(',')[1];
+            fileBlob = base64Data ? new Blob([Buffer.from(base64Data, 'base64')], { type: file.type }) : new Blob([''], { type: file.type });
+          } else {
+            // Handle text or other content
+            fileBlob = new Blob([file.content], { type: file.type });
+          }
+          
+          formData.append('question_files', new File([fileBlob], file.name, { type: file.type }));
         }
       }
 
@@ -272,8 +299,19 @@ export default function FileUploader({
       
       for (const file of pseudocodeFiles) {
         if (file.name !== 'pseudocode.txt') {
-          const blob = new Blob([file.content], { type: file.type });
-          formData.append('pseudocode_files', new File([blob], file.name, { type: file.type }));
+          // Handle different content types appropriately
+          let fileBlob;
+          
+          if (typeof file.content === 'string' && file.content.startsWith('data:')) {
+            // Handle base64 data URLs for images
+            const base64Data = file.content.split(',')[1];
+            fileBlob = base64Data ? new Blob([Buffer.from(base64Data, 'base64')], { type: file.type }) : new Blob([''], { type: file.type });
+          } else {
+            // Handle text or other content
+            fileBlob = new Blob([file.content], { type: file.type });
+          }
+          
+          formData.append('pseudocode_files', new File([fileBlob], file.name, { type: file.type }));
         }
       }
 
