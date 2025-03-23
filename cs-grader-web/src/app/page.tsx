@@ -84,14 +84,27 @@ export default function Home() {
       const savedActiveId = localStorage.getItem('activeQuestionId');
       
       if (savedQuestions) {
-        setQuestions(JSON.parse(savedQuestions));
+        const parsedQuestions = JSON.parse(savedQuestions);
+        // Restore file previews for image files
+        parsedQuestions.forEach((question: Question) => {
+          question.contextFiles.forEach(file => {
+            if (file.type.startsWith('image/') && file.content) {
+              file.preview = file.content as string;
+            }
+          });
+          question.pseudocodeFiles.forEach(file => {
+            if (file.type.startsWith('image/') && file.content) {
+              file.preview = file.content as string;
+            }
+          });
+        });
+        setQuestions(parsedQuestions);
       }
       if (savedActiveId) {
         setActiveQuestionId(savedActiveId);
       }
     } catch (error) {
       console.error('Error loading from localStorage:', error);
-      // If there's an error loading from localStorage, start fresh
       setQuestions([]);
       setActiveQuestionId(null);
     }
@@ -100,7 +113,23 @@ export default function Home() {
   // Save questions to localStorage whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('questions', JSON.stringify(questions));
+      // Create a copy of questions to modify before saving
+      const questionsToSave = questions.map(question => ({
+        ...question,
+        contextFiles: question.contextFiles.map(file => ({
+          ...file,
+          // For image files, store the content as the preview URL
+          content: file.type.startsWith('image/') ? file.preview : file.content,
+          // Don't store preview separately as we'll reconstruct it on load
+          preview: undefined
+        })),
+        pseudocodeFiles: question.pseudocodeFiles.map(file => ({
+          ...file,
+          content: file.type.startsWith('image/') ? file.preview : file.content,
+          preview: undefined
+        }))
+      }));
+      localStorage.setItem('questions', JSON.stringify(questionsToSave));
     } catch (error) {
       console.error('Error saving to localStorage:', error);
     }
