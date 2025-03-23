@@ -49,6 +49,8 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         4. Could the solution be improved?
         5. How does it compare to the similar solutions found?
         
+        Ignore any comments. Only evaluate the correctness of the psuedocode. 
+        
         Provide a detailed evaluation with a score from 0 to 1.
         """
 
