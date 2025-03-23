@@ -3,7 +3,6 @@
 import { useState, useRef} from 'react';
 import Editor from '@monaco-editor/react';
 import Image from 'next/image';
-import Tests from './tests';
 
 interface FileItem {
   name: string;
@@ -44,9 +43,6 @@ interface AnalysisResult {
     feedback: string;
     logical_analysis: string;
     potential_issues: string[];
-  };
-  result?: {
-    testResults: CodeTestResult[];
   };
 }
 
@@ -579,7 +575,7 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
           </div>
 
           {/* Logic Evaluation */}
-          <div className="mb-6">
+          <div>
             <h3 className="text-lg font-medium text-[#E0E0E0] mb-2">Logic Evaluation</h3>
             <div className="bg-[#333333] rounded p-4">
               <div className="mb-4">
@@ -604,9 +600,6 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
               </div>
             </div>
           </div>
-
-          {/* Test Results */}
-          <Tests testResults={analysisResult.result?.testResults || []} />
         </div>
       )}
     </div>
