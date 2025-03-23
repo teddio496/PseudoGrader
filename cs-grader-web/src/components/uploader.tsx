@@ -314,7 +314,7 @@ export default function FileUploader({
           if (typeof file.content === 'string' && file.content.startsWith('data:')) {
             // Handle base64 data URLs for images
             const base64Data = file.content.split(',')[1];
-            fileBlob = base64Data ? new Blob([Buffer.from(base64Data, 'base64')], { type: file.type }) : new Blob([''], { type: file.type });
+            fileBlob = base64Data ? base64ToBlob(base64Data, file.type) : new Blob([''], { type: file.type });
           } else {
             // Handle text or other content
             fileBlob = new Blob([file.content], { type: file.type });
