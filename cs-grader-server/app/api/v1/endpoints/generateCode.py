@@ -3,6 +3,8 @@ from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
 from app.core.config import settings, GEMINI_MODEL
 from app.core.logging import setup_logger
 import google.generativeai as genai
+import asyncio
+from typing import List, Dict, Any, Tuple
 
 router = APIRouter()
 logger = setup_logger("gemini")
@@ -48,10 +50,10 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
                 "top_p": 1.0,       
                 "top_k": 0,     
                 "candidate_count": 1,
-                "max_output_tokens": 10000
+                "max_output_tokens": 1000
             }
             
-            # First call: Generate Python code
+            # Prepare the code generation prompt
             code_prompt = f"""
             Convert the following pseudocode into Python code EXACTLY as specified. 
             Do not fix, re-arrange, or optimize anything. 
@@ -69,31 +71,43 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             {request.prompt}
             """
             
-            code_response = GEMINI_MODEL.generate_content(
-                contents=[{"text": code_prompt}],
-                generation_config=generation_config
+            # Create a prompt for test generation that works with just the pseudocode
+            # This allows us to start generating tests concurrently while code is being generated
+            test_prompt = f"""
+            Create pytest test cases for Python code that will be translated from this pseudocode:
+            
+            Question Description:
+            {request.description}
+
+            Pseudocode:
+            {request.prompt}
+            
+            From analyzing the pseudocode above, create comprehensive pytest test cases to validate the Python implementation.
+            Focus on testing functionality, edge cases, and expected behavior of the algorithm described in the pseudocode.
+            Return ONLY the pytest test cases, no explanations or additional text.
+            IMPORTANT: Do NOT include the original Python code in the test cases.
+            """
+            
+            # Start both API calls concurrently
+            code_response, test_response = await asyncio.gather(
+                GEMINI_MODEL.generate_content(
+                    contents=[{"text": code_prompt}],
+                    generation_config=generation_config
+                ),
+                GEMINI_MODEL.generate_content(
+                    contents=[{"text": test_prompt}],
+                    generation_config=generation_config
+                )
             )
             
+            # Process code response
             if not code_response.text:
                 raise HTTPException(status_code=500, detail="No code generated")
             
             python_code = code_response.text.strip()
             python_code = python_code.replace("```python", "").replace("```", "").strip()
             
-            # Second call: Generate test cases
-            test_prompt = f"""
-            Write pytest test cases for this Python code. The test cases should reflect the code's behavior as-is, including any logical errors or flaws.
-            Return ONLY the pytest test cases, no explanations or additional text.
-
-            Python Code:
-            {python_code}
-            """
-            
-            test_response = GEMINI_MODEL.generate_content(
-                contents=[{"text": test_prompt}],
-                generation_config=generation_config
-            )
-            
+            # Process test response
             if not test_response.text:
                 raise HTTPException(status_code=500, detail="No test cases generated")
             
@@ -104,8 +118,8 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             return PromptResponse(
                 code=python_code,
                 testing_code=testing_code,
-                model_used=settings.GEMINI_MODEL_NAME
             )
+        
         except Exception as e:
             logger.error(f"Error in generate_response: {str(e)}")
             raise HTTPException(
