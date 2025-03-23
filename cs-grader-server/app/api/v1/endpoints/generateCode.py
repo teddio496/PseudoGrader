@@ -3,6 +3,7 @@ from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
 from app.core.config import settings, GEMINI_MODEL
 from app.core.logging import setup_logger
 import google.generativeai as genai
+import asyncio
 
 router = APIRouter()
 logger = setup_logger("gemini")
@@ -87,15 +88,23 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             """
             
             # Start both API calls concurrently
-            code_response, test_response = await asyncio.gather(
-                GEMINI_MODEL.generate_content(
+            # Create async functions to wrap the synchronous generate_content calls
+            async def generate_code():
+                return GEMINI_MODEL.generate_content(
                     contents=[{"text": code_prompt}],
                     generation_config=generation_config
-                ),
-                GEMINI_MODEL.generate_content(
+                )
+                
+            async def generate_tests():
+                return GEMINI_MODEL.generate_content(
                     contents=[{"text": test_prompt}],
                     generation_config=generation_config
                 )
+                
+            # Run both tasks concurrently
+            code_response, test_response = await asyncio.gather(
+                generate_code(),
+                generate_tests()
             )
             
             # Process code response
