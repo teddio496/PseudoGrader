@@ -33,6 +33,7 @@ interface AnalysisResult {
       readability: string;
     };
     potential_issues: string[];
+    similar_solutions: string[];
   };
   result?: {
     testResults: {

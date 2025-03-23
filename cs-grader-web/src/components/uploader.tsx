@@ -353,6 +353,9 @@ export default function FileUploader({
           testResults: result.result?.testResults || []
         }
       });
+      setEditableCode(result.code_generation.code);
+      setEditableTests(result.code_generation.testing_code)
+
       handleRunTests();
 
     } catch (error) {
