@@ -3,8 +3,6 @@ from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
 from app.core.config import settings, GEMINI_MODEL
 from app.core.logging import setup_logger
 import google.generativeai as genai
-import asyncio
-from typing import List, Dict, Any, Tuple
 
 router = APIRouter()
 logger = setup_logger("gemini")
