@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     // Log what we're sending
-    console.log('Sending files:', files.map((f: any) => f.name));
+    console.log('Sending files:', files.map((f: FormDataEntryValue) => f instanceof File ? f.name : String(f)));
 
     // Send files to the FastAPI endpoint
     const response = await fetch('http://localhost:8000/api/v1/input/files-to-text', {

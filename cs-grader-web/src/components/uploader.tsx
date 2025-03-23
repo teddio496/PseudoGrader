@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import Image from 'next/image';
 
@@ -20,11 +20,33 @@ interface FileUploaderProps {
     pseudocode?: string;
     contextFiles?: FileItem[];
     pseudocodeFiles?: FileItem[];
+    result?: { [key: string]: unknown };
   }) => void;
   initialStatus: 'pending' | 'loading' | 'completed' | 'error';
 }
 
-export default function FileUploader({ questionId, onQuestionUpdate, initialStatus }: FileUploaderProps) {
+interface AnalysisResult {
+  input_processing: {
+    question: {
+      content: string[];
+    };
+    pseudocode: {
+      content: string[];
+    };
+  };
+  code_generation: {
+    code: string;
+    testing_code: string;
+  };
+  logic_evaluation: {
+    score: number;
+    feedback: string;
+    logical_analysis: string;
+    potential_issues: string[];
+  };
+}
+
+export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<FileUploaderProps, 'questionId'>) {
   const [contextContent, setContextContent] = useState('');
   const [pseudocodeContent, setPseudocodeContent] = useState('');
   const [contextFiles, setContextFiles] = useState<FileItem[]>([]);
@@ -33,6 +55,7 @@ export default function FileUploader({ questionId, onQuestionUpdate, initialStat
   const [isPseudocodeEditorOpen, setIsPseudocodeEditorOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [status, setStatus] = useState(initialStatus);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const contextFileInputRef = useRef<HTMLInputElement>(null);
   const pseudocodeFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,53 +113,76 @@ export default function FileUploader({ questionId, onQuestionUpdate, initialStat
     setIsContextEditorOpen(false);
   };
 
-  const handlePseudocodeSave = async () => {
+  const handleProcessFiles = async () => {
+    setStatus('loading');
+    setAnalysisResult(null);
+
+    try {
+      const formData = new FormData();
+      
+      // Add context files
+      const contextBlob = new Blob([contextContent], { type: 'text/plain' });
+      formData.append('question_files', new File([contextBlob], 'context.txt', { type: 'text/plain' }));
+      
+      for (const file of contextFiles) {
+        if (file.name !== 'context.txt') {
+          const blob = new Blob([file.content], { type: file.type });
+          formData.append('question_files', new File([blob], file.name, { type: file.type }));
+        }
+      }
+
+      // Add pseudocode files
+      const pseudocodeBlob = new Blob([pseudocodeContent], { type: 'text/plain' });
+      formData.append('pseudocode_files', new File([pseudocodeBlob], 'pseudocode.txt', { type: 'text/plain' }));
+      
+      for (const file of pseudocodeFiles) {
+        if (file.name !== 'pseudocode.txt') {
+          const blob = new Blob([file.content], { type: file.type });
+          formData.append('pseudocode_files', new File([blob], file.name, { type: file.type }));
+        }
+      }
+
+      const response = await fetch('http://localhost:8000/api/v1/getResponse/get-response', {
+        method: 'POST',
+        body: formData
+      });
+
+      console.log('Response:', response);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to analyze files');
+      }
+      
+      const result = await response.json();
+      console.log('Process files response:', result);
+      
+      setStatus('completed');
+      setAnalysisResult(result);
+      onQuestionUpdate({ 
+        pseudocode: pseudocodeContent,
+        context: contextContent,
+        status: 'completed',
+        contextFiles: [...contextFiles.filter(f => f.name !== 'context.txt')],
+        pseudocodeFiles: [...pseudocodeFiles.filter(f => f.name !== 'pseudocode.txt')],
+        result: result
+      });
+
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      setStatus('error');
+      setAnalysisResult(null);
+      onQuestionUpdate({ status: 'error' });
+    }
+  };
+
+  const handlePseudocodeSave = () => {
     const pseudocodeFile: FileItem = {
       name: 'pseudocode.txt',
       content: pseudocodeContent,
       type: 'text/plain'
     };
     setPseudocodeFiles(prev => [...prev.filter(f => f.name !== 'pseudocode.txt'), pseudocodeFile]);
-    setStatus('loading');
-
-    try {
-      const formData = new FormData();
-      
-      // Add the main pseudocode content
-      const pseudocodeBlob = new Blob([pseudocodeContent], { type: 'text/plain' });
-      formData.append('files', new File([pseudocodeBlob], 'pseudocode.txt', { type: 'text/plain' }));
-      
-      // Add all pseudocode files
-      for (const file of pseudocodeFiles) {
-        if (file.name !== 'pseudocode.txt') { // Skip if it's the main pseudocode file
-          const blob = new Blob([file.content], { type: file.type });
-          formData.append('files', new File([blob], file.name, { type: file.type }));
-        }
-      }
-
-      const response = await fetch('/api/send_text', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze pseudocode');
-      }
-      
-      const result = await response.json();
-      
-      setStatus('completed');
-      onQuestionUpdate({ 
-        pseudocode: pseudocodeContent,
-        status: 'completed',
-        pseudocodeFiles: [...pseudocodeFiles.filter(f => f.name !== 'pseudocode.txt'), pseudocodeFile]
-      });
-    } catch (error) {
-      console.error('Analysis failed:', error);
-      setStatus('error');
-      onQuestionUpdate({ status: 'error' });
-    }
     setIsPseudocodeEditorOpen(false);
   };
 
@@ -153,6 +199,7 @@ export default function FileUploader({ questionId, onQuestionUpdate, initialStat
       onQuestionUpdate({ pseudocodeFiles: pseudocodeFiles.filter(f => f.name !== fileName) });
     }
   };
+
 
   return (
     <div className="mx-auto space-y-6">
@@ -410,6 +457,99 @@ export default function FileUploader({ questionId, onQuestionUpdate, initialStat
               >
                 Save & Analyze
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Process Files Button */}
+      <div className="flex justify-center mt-6">
+        <button
+          onClick={handleProcessFiles}
+          disabled={status === 'loading'}
+          className={`px-6 py-3 rounded-lg text-[#E0E0E0] font-semibold transition-colors flex items-center gap-2
+            ${status === 'loading' 
+              ? 'bg-[#666666] cursor-not-allowed' 
+              : 'bg-[#4CAF50] hover:bg-[#45A049]'}`}
+        >
+          {status === 'loading' ? (
+            <>
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Process Files
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Analysis Results */}
+      {analysisResult && (
+        <div className="mt-8 bg-[#444444] rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-[#E0E0E0] mb-4">Analysis Results</h2>
+          
+          {/* Input Processing */}
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-[#E0E0E0] mb-2">Input Processing</h3>
+            <div className="bg-[#333333] rounded p-4">
+              <div className="mb-4">
+                <h4 className="text-[#E0E0E0] font-medium mb-2">Question</h4>
+                <pre className="text-[#B0B0B0] whitespace-pre-wrap">
+                  {analysisResult.input_processing?.question?.content?.join('\n')}
+                </pre>
+              </div>
+              <div>
+                <h4 className="text-[#E0E0E0] font-medium mb-2">Pseudocode</h4>
+                <pre className="text-[#B0B0B0] whitespace-pre-wrap">
+                  {analysisResult.input_processing?.pseudocode?.content?.join('\n')}
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          {/* Code Generation */}
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-[#E0E0E0] mb-2">Generated Code</h3>
+            <div className="bg-[#333333] rounded p-4">
+              <pre className="text-[#B0B0B0] whitespace-pre-wrap">
+                {analysisResult.code_generation?.code?.replace(/```python\n|```/g, '')}
+              </pre>
+            </div>
+          </div>
+
+          {/* Logic Evaluation */}
+          <div>
+            <h3 className="text-lg font-medium text-[#E0E0E0] mb-2">Logic Evaluation</h3>
+            <div className="bg-[#333333] rounded p-4">
+              <div className="mb-4">
+                <span className="text-[#E0E0E0] font-medium">Score: </span>
+                <span className="text-[#B0B0B0]">{analysisResult.logic_evaluation?.score}</span>
+              </div>
+              <div className="mb-4">
+                <h4 className="text-[#E0E0E0] font-medium mb-2">Feedback</h4>
+                <p className="text-[#B0B0B0] whitespace-pre-wrap">{analysisResult.logic_evaluation?.feedback}</p>
+              </div>
+              <div className="mb-4">
+                <h4 className="text-[#E0E0E0] font-medium mb-2">Logical Analysis</h4>
+                <p className="text-[#B0B0B0] whitespace-pre-wrap">{analysisResult.logic_evaluation?.logical_analysis}</p>
+              </div>
+              <div>
+                <h4 className="text-[#E0E0E0] font-medium mb-2">Potential Issues</h4>
+                <ul className="list-disc list-inside text-[#B0B0B0]">
+                  {analysisResult.logic_evaluation?.potential_issues?.map((issue: string, index: number) => (
+                    <li key={index} className="mb-2 whitespace-pre-wrap">{issue}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </div>
