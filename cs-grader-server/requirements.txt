@@ -7,7 +7,7 @@ cohere==5.14.0
 PyPDF2==3.0.1
 python-multipart==0.0.9
 google-cloud-vision==3.4.4
-docker==7.0.0
+docker==7.1.0
 colorama==0.4.6
 pydantic-settings==2.2.1
 chromadb==0.6.3
