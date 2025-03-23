@@ -353,10 +353,13 @@ export default function FileUploader({
           testResults: result.result?.testResults || []
         }
       });
-      setEditableCode(result.code_generation.code);
-      setEditableTests(result.code_generation.testing_code)
-
-      handleRunTests();
+      const newCode = result.code_generation.code;
+      const newTests = result.code_generation.testing_code;
+      setEditableCode(newCode);
+      setEditableTests(newTests);
+      
+      // Pass the new values directly
+      handleRunTests(newCode, newTests);
 
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -390,7 +393,7 @@ export default function FileUploader({
     }
   };
 
-  const handleRunTests = async () => {
+  const handleRunTests = async (code: string, tests: string) => {
     setStatus('loading');
     try {
       const testResponse = await fetch('http://localhost:8000/api/v1/pytest/run', {
@@ -399,8 +402,8 @@ export default function FileUploader({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          code: editableCode,
-          test_code: editableTests
+          code,
+          test_code: tests
         })
       });
 
@@ -820,7 +823,7 @@ export default function FileUploader({
             {(activeTab === 'code' || activeTab === 'tests') && (
               <div className="mt-4 flex justify-end">
                 <button
-                  onClick={handleRunTests}
+                  onClick={() => handleRunTests(editableCode, editableTests)}
                   disabled={status === 'loading'}
                   className={`px-6 py-2 rounded text-[#E0E0E0] font-semibold transition-colors flex items-center gap-2
                     ${status === 'loading' 
