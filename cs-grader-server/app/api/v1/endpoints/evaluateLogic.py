@@ -27,20 +27,16 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
 
         # Create a prompt for evaluation with similar solutions as context
         similar_solutions_context = "Similar Solutions Found:\n" if suggested_algorithms else "No similar solutions found."
-        similar_solutions = []
+        algorithm_list = []
         
         if suggested_algorithms:
             for i, solution in enumerate(suggested_algorithms, 1):
                 if solution['similarity'] >= 0.4:
-                    similar_solutions_context += f"\nSolution {i} (Similarity: {solution['similarity']:.2f}):\n"
-                    similar_solutions_context += f"Question: {solution['question']}\n"
-                    similar_solutions_context += f"Pseudocode:\n{solution['pseudocode']}\n"
-                    similar_solutions.append(SimilarSolution(
-                        question=solution['question'],
-                        pseudocode=solution['pseudocode'],
-                        similarity=solution['similarity']
-                    ))
-            logger.info(f"Including {len(similar_solutions)} similar solutions in response")
+                    new_context = f"\nAlgorithm {i} (Similarity: {solution['similarity']:.2f}):\n"
+                    new_context += f"Question: {solution['question']}\n"
+                    new_context += f"Pseudocode:\n{solution['pseudocode']}\n"
+                    similar_solutions_context += new_context
+                    algorithm_list.append(new_context)
 
         # Create a structured prompt for evaluation
         evaluation_prompt = f"""
@@ -128,7 +124,7 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
                 feedback=evaluation_json.get('feedback', "No feedback available."),
                 logical_analysis=logical_analysis,
                 potential_issues=evaluation_json.get('potential_issues', []),
-                similar_solutions=similar_solutions
+                similar_solutions=algorithm_list
             )
 
         except json.JSONDecodeError as e:

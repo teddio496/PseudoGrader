@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     COHERE_EMBEDDING_MODEL: str = "embed-english-v3.0"
 
     # Database Configurations
-    CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", str(Path(config_dir) / ".." / ".." / "cs-grader-embeddings" / "chroma_db"))
+    CHROMA_DB_PATH: str = os.path.join(config_dir, "chroma_db")
 
     class Config:
         case_sensitive = True
