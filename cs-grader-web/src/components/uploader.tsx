@@ -576,6 +576,7 @@ export default function FileUploader({
               </div>
               {pseudocodeFiles.length > 0 && (
                 <div className="bg-[#1E1E1E] rounded p-2">
+                  <h3 className="text-[#E0E0E0] text-xs mb-1">Attached Files:</h3>
                   <ul className="space-y-1">
                     {pseudocodeFiles.map((file, index) => (
                       <li 
