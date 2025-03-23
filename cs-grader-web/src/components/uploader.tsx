@@ -444,11 +444,11 @@ export default function FileUploader({
   return (
     <div className="flex h-screen gap-3 p-3">
       {/* Left Half - File Uploads */}
-      <div className="w-1/2">
-        <div className="flex flex-col gap-4">
+      <div className="w-1/2 flex flex-col h-full">
+        <div className="flex flex-col gap-4 h-full overflow-hidden">
           {/* Question Context Section */}
-          <div className="flex-grow bg-[#222222] rounded-lg shadow p-2">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-[#222222] rounded-lg shadow p-2 flex-shrink-0">
+            <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-semibold text-[#E0E0E0]">Question Context</h2>
               <div className="flex gap-2">
                 <button 
@@ -479,16 +479,18 @@ export default function FileUploader({
               className="hidden"
               ref={contextFileInputRef}
             />
-            <div className="bg-[#121212] rounded p-4 min-h-[100px]">
-              <pre className="text-[#E0E0E0] whitespace-pre-wrap mb-4">{contextContent || 'No context provided yet.'}</pre>
+            <div className="flex flex-col">
+              <div className="bg-[#121212] rounded p-2 max-h-[80px] overflow-y-auto mb-2">
+                <pre className="text-[#E0E0E0] whitespace-pre-wrap text-sm">{contextContent || 'No context provided yet.'}</pre>
+              </div>
               {contextFiles.length > 0 && (
-                <div className="border-t border-[#222222] pt-4">
-                  <h3 className="text-[#E0E0E0] text-sm mb-2">Attached Files:</h3>
-                  <ul className="space-y-2">
+                <div className="bg-[#1E1E1E] rounded p-2">
+                  <h3 className="text-[#E0E0E0] text-xs mb-1">Attached Files:</h3>
+                  <ul className="space-y-1">
                     {contextFiles.map((file, index) => (
                       <li 
                         key={index}
-                        className="flex items-center p-2 bg-[#222222] rounded"
+                        className="flex items-center p-1 bg-[#222222] rounded text-sm"
                       >
                         <span 
                           className="text-[#E0E0E0] flex-1 cursor-pointer hover:text-[#B0B0B0]"
@@ -497,13 +499,13 @@ export default function FileUploader({
                           {file.name}
                         </span>
                         {file.type.startsWith('image/') && (
-                          <Image src={file.preview || ''} alt="preview" width={32} height={32} className="object-cover rounded mx-2" />
+                          <Image src={file.preview || ''} alt="preview" width={24} height={24} className="object-cover rounded mx-1" />
                         )}
                         <button
                           onClick={() => handleDeleteFile(file.name, true)}
                           className="text-[#EF5350] hover:text-[#FF7043] p-1"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
@@ -516,8 +518,8 @@ export default function FileUploader({
           </div>
 
           {/* Pseudocode Section */}
-          <div className="flex-grow bg-[#222222] rounded-lg shadow p-2">
-            <div className="flex justify-between items-center mb-4">
+          <div className="flex-1 bg-[#222222] rounded-lg shadow p-2 min-h-0 overflow-hidden">
+            <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-semibold text-[#E0E0E0]">Pseudocode</h2>
               <div className="flex gap-2">
                 <button 
@@ -548,16 +550,38 @@ export default function FileUploader({
               className="hidden"
               ref={pseudocodeFileInputRef}
             />
-            <div className="bg-[#121212] rounded p-4 min-h-[100px]">
-              <pre className="text-[#E0E0E0] whitespace-pre-wrap mb-4">{pseudocodeContent || 'No pseudocode provided yet.'}</pre>
+            <div className="flex flex-col h-full">
+              <div className={`flex-1 bg-[#121212] rounded p-2 overflow-y-auto ${pseudocodeFiles.length > 0 ? 'mb-2' : ''}`}>
+                {isPseudocodeEditorOpen ? (
+                  <div className="h-full border border-[#444444] rounded-lg overflow-hidden">
+                    <Editor
+                      height="100%"
+                      defaultLanguage="plaintext"
+                      value={pseudocodeContent}
+                      onChange={(value) => setPseudocodeContent(value || '')}
+                      theme="vs-dark"
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        wordWrap: 'on'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <pre className="text-[#E0E0E0] whitespace-pre-wrap text-sm">{pseudocodeContent || 'No pseudocode provided yet.'}</pre>
+                )}
+              </div>
               {pseudocodeFiles.length > 0 && (
-                <div className="border-t border-[#222222] pt-4">
-                  <h3 className="text-[#E0E0E0] text-sm mb-2">Attached Files:</h3>
-                  <ul className="space-y-2">
+                <div className="bg-[#1E1E1E] rounded p-2">
+                  <h3 className="text-[#E0E0E0] text-xs mb-1">Attached Files:</h3>
+                  <ul className="space-y-1">
                     {pseudocodeFiles.map((file, index) => (
                       <li 
                         key={index}
-                        className="flex items-center p-2 bg-[#222222] rounded"
+                        className="flex items-center p-1 bg-[#222222] rounded text-sm"
                       >
                         <span 
                           className="text-[#E0E0E0] flex-1 cursor-pointer hover:text-[#B0B0B0]"
@@ -566,13 +590,13 @@ export default function FileUploader({
                           {file.name}
                         </span>
                         {file.type.startsWith('image/') && (
-                          <Image src={file.preview || ''} alt="preview" width={32} height={32} className="object-cover rounded mx-2" />
+                          <Image src={file.preview || ''} alt="preview" width={24} height={24} className="object-cover rounded mx-1" />
                         )}
                         <button
                           onClick={() => handleDeleteFile(file.name, false)}
                           className="text-[#EF5350] hover:text-[#FF7043] p-1"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
@@ -583,7 +607,6 @@ export default function FileUploader({
               )}
             </div>
             <div className="mt-4 flex items-center gap-4">
-
               <div className="flex-1 bg-[#121212] h-2 rounded-full overflow-hidden">
                 {status === 'loading' && (
                   <div className="h-full bg-[#FFA726] animate-pulse" />
@@ -603,8 +626,9 @@ export default function FileUploader({
               </span>
             </div>
           </div>
+          
           {/* Process Files Button */}
-          <div className="flex justify-center">
+          <div className="flex justify-center py-2">
             <button
               onClick={handleProcessFiles}
               disabled={status === 'loading'}
