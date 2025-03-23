@@ -59,7 +59,8 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             The goal is a near-verbatim translation from pseudocode into Python. 
             If any step in the pseudocode is ambiguous, maintain the same structure and variable usage. 
             Do not add error handling or assume missing details. 
-            Return ONLY the Python code.
+            IMPORTANT: Return ONLY the raw Python code with ABSOLUTELY NO COMMENTS, NO DOCSTRINGS, and NO EXPLANATIONS. 
+            The response should contain nothing but the actual code.
 
             Question Description:
             {request.description}
