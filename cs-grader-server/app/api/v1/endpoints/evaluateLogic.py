@@ -126,6 +126,7 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
             )
             
             return PseudocodeEvaluationResponse(
+                feedback=evaluation_json.get('feedback', "No feedback available."),
                 logical_analysis=logical_analysis,
                 potential_issues=evaluation_json.get('potential_issues', []),
                 similar_solutions=similar_solutions

@@ -35,6 +35,7 @@ class LogicalAnalysis(BaseModel):
     readability: str = Field(..., description="Analysis of the solution's readability")
 
 class PseudocodeEvaluationResponse(BaseModel):
+    feedback: str = Field(..., description="Feedback on the solution")
     logical_analysis: LogicalAnalysis = Field(..., description="Detailed analysis of the solution")
     potential_issues: List[str] = Field(default_factory=list, description="List of potential issues or edge cases")
     similar_solutions: List[SimilarSolution] = Field(default_factory=list, description="List of similar solutions found")
