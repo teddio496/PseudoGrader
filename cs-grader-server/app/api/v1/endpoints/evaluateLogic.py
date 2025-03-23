@@ -1,8 +1,9 @@
 from app.core.chroma_middleware import ChromaMiddleware
 from fastapi import APIRouter, HTTPException
 from app.core.config import settings, COHERE_CLIENT
-from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse
+from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, SimilarSolution
 from app.core.logging import setup_logger
+import re
 
 logger = setup_logger("pseudocode")
 router = APIRouter()
@@ -55,7 +56,7 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         # Generate evaluation using Cohere's generate endpoint
         response = COHERE_CLIENT.generate(
             prompt=evaluation_prompt,
-            max_tokens=500,
+            max_tokens=1000,
             temperature=0.3,
             k=0,
             stop_sequences=[],
@@ -74,7 +75,6 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         logger.debug(f"Received evaluation text: {evaluation_text[:100]}...")
         
         # Extract score (assuming it's mentioned as a number between 0 and 1)
-        import re
         score_match = re.search(r'(\d+\.?\d*)', evaluation_text)
         score = float(score_match.group(1)) if score_match else 0.5
         logger.info(f"Extracted score: {score}")
@@ -91,12 +91,24 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
                 issues.append(section.strip())
         logger.info(f"Found {len(issues)} potential issues")
 
+        # Convert suggested algorithms to SimilarSolution objects
+        similar_solutions = []
+        if suggested_algorithms:
+            for algo in suggested_algorithms:
+                if algo['similarity'] >= 0.5:  # Only include reasonably similar solutions
+                    similar_solutions.append(SimilarSolution(
+                        question=algo['question'],
+                        pseudocode=algo['pseudocode'],
+                        similarity=algo['similarity']
+                    ))
+            logger.info(f"Including {len(similar_solutions)} similar solutions in response")
+
         return PseudocodeEvaluationResponse(
             score=score,
             feedback=feedback,
             logical_analysis=logical_analysis,
             potential_issues=issues,
-            model_used=settings.COHERE_EMBEDDING_MODEL
+            similar_solutions=similar_solutions
         )
 
     except Exception as e:
