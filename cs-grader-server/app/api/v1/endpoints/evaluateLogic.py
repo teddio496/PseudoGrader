@@ -1,9 +1,10 @@
 from app.core.chroma_middleware import ChromaMiddleware
 from fastapi import APIRouter, HTTPException
-from app.core.config import settings, COHERE_CLIENT
-from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, SimilarSolution
+from app.core.config import COHERE_CLIENT
+from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, SimilarSolution, LogicalAnalysis
 from app.core.logging import setup_logger
 import re
+import json
 
 logger = setup_logger("pseudocode")
 router = APIRouter()
@@ -26,30 +27,49 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
 
         # Create a prompt for evaluation with similar solutions as context
         similar_solutions_context = ""
-        if suggested_algorithms and suggested_algorithms[0]['similarity'] >= 0.5:
+        if suggested_algorithms:
             similar_solutions_context = "\nSimilar Solutions Found:\n"
             for i, solution in enumerate(suggested_algorithms, 1):
-                similar_solutions_context += f"\nSolution {i} (Similarity: {solution['similarity']:.2f}):\n"
-                similar_solutions_context += f"Question: {solution['question']}\n"
-                similar_solutions_context += f"Pseudocode:\n{solution['pseudocode']}\n"
+                if solution['similarity'] >= 0.5:
+                    similar_solutions_context += f"\nSolution {i} (Similarity: {solution['similarity']:.2f}):\n"
+                    similar_solutions_context += f"Question: {solution['question']}\n"
+                    similar_solutions_context += f"Pseudocode:\n{solution['pseudocode']}\n"
 
-        # Create a prompt for evaluation
+        if not similar_solutions_context:
+            similar_solutions_context = "No similar solutions found."
+
+        # Create a structured prompt for evaluation
         evaluation_prompt = f"""
         Question: {request.question}
         
         Pseudocode Solution:
         {request.pseudocode}
         
+        Similar Algorithms:
         {similar_solutions_context}
         
-        Please evaluate this pseudocode solution considering:
+        Please evaluate this pseudocode solution and provide your response in the following JSON format:
+        {{
+            "score": <float between 0 and 1>,
+            "feedback": "<general feedback about the solution>",
+            "logical_analysis": {{
+                "correctness": "<correctness of the solution>",
+                "efficiency": "<efficiency of the solution>",
+                "readability": "<readability of the solution>"
+            }},
+            "potential_issues": [
+                "<issue 1>",
+                "<issue 2>",
+                ...
+            ]
+        }}
+        
+        Consider:
         1. Does it correctly address the question?
         2. Is the logical flow sound?
         3. Are there any potential issues or edge cases not handled?
         4. Could the solution be improved?
         5. How does it compare to the similar solutions found?
-        
-        Provide a detailed evaluation with a score from 0 to 1.
         """
 
         logger.debug("Generating evaluation using Cohere")
@@ -70,54 +90,64 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
                 detail="No response generated from Cohere"
             )
 
-        # Parse the response to extract score and feedback
+        # Parse the response to extract JSON
         evaluation_text = response.generations[0].text
         logger.debug(f"Received evaluation text: {evaluation_text[:100]}...")
         
-        # Extract score (assuming it's mentioned as a number between 0 and 1)
-        score_match = re.search(r'(\d+\.?\d*)', evaluation_text)
-        score = float(score_match.group(1)) if score_match else 0.5
-        logger.info(f"Extracted score: {score}")
-        
-        # Split the evaluation into sections
-        sections = evaluation_text.split('\n\n')
-        feedback = sections[0] if sections else "No detailed feedback available."
-        logical_analysis = sections[1] if len(sections) > 1 else "No logical analysis available."
-        
-        # Extract potential issues
-        issues = []
-        for section in sections:
-            if "issue" in section.lower() or "problem" in section.lower():
-                issues.append(section.strip())
-        logger.info(f"Found {len(issues)} potential issues")
+        try:
+            # Extract JSON from the response
+            json_match = re.search(r'\{.*\}', evaluation_text, re.DOTALL)
+            if not json_match:
+                logger.error("No JSON found in response")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid response format from Cohere"
+                )
+            
+            evaluation_json = json.loads(json_match.group(0))
+            logger.info(f"Parsed evaluation JSON: {json.dumps(evaluation_json, indent=2)}")
+            
+            # Create LogicalAnalysis object
+            logical_analysis_dict = evaluation_json.get('logical_analysis', {})
+            logical_analysis = LogicalAnalysis(
+                correctness=logical_analysis_dict.get('correctness', "No correctness analysis available."),
+                efficiency=logical_analysis_dict.get('efficiency', "No efficiency analysis available."),
+                readability=logical_analysis_dict.get('readability', "No readability analysis available.")
+            )
+            
+            # Convert suggested algorithms to SimilarSolution objects
+            similar_solutions = []
+            if suggested_algorithms:
+                for algo in suggested_algorithms:
+                    if algo['similarity'] >= 0.5:  # Only include reasonably similar solutions
+                        similar_solutions.append(SimilarSolution(
+                            question=algo['question'],
+                            pseudocode=algo['pseudocode'],
+                            similarity=algo['similarity']
+                        ))
+                logger.info(f"Including {len(similar_solutions)} similar solutions in response")
 
-        # Convert suggested algorithms to SimilarSolution objects
-        similar_solutions = []
-        if suggested_algorithms:
-            for algo in suggested_algorithms:
-                if algo['similarity'] >= 0.5:  # Only include reasonably similar solutions
-                    similar_solutions.append(SimilarSolution(
-                        question=algo['question'],
-                        pseudocode=algo['pseudocode'],
-                        similarity=algo['similarity']
-                    ))
-            logger.info(f"Including {len(similar_solutions)} similar solutions in response")
+            return PseudocodeEvaluationResponse(
+                score=evaluation_json.get('score', 0.5),
+                feedback=evaluation_json.get('feedback', "No detailed feedback available."),
+                logical_analysis=logical_analysis,
+                potential_issues=evaluation_json.get('potential_issues', []),
+                similar_solutions=similar_solutions
+            )
 
-        return PseudocodeEvaluationResponse(
-            score=score,
-            feedback=feedback,
-            logical_analysis=logical_analysis,
-            potential_issues=issues,
-            similar_solutions=similar_solutions
-        )
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to parse evaluation response"
+            )
 
     except Exception as e:
         logger.error(f"Error evaluating pseudocode: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Error evaluating pseudocode: {str(e)}"
-        ) 
-
+        )
 
 @router.get("/stats")
 async def get_chroma_stats():
