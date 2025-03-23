@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef} from 'react';
 import Editor from '@monaco-editor/react';
 import Image from 'next/image';
 
@@ -46,6 +46,16 @@ interface AnalysisResult {
   };
 }
 
+interface CodeTestResult {
+  testName: string;
+  lineNumber: number;
+  passed: boolean;
+  crash?: {
+    line: number;
+    message: string;
+  };
+}
+
 export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<FileUploaderProps, 'questionId'>) {
   const [contextContent, setContextContent] = useState('');
   const [pseudocodeContent, setPseudocodeContent] = useState('');
@@ -55,6 +65,7 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
   const [isPseudocodeEditorOpen, setIsPseudocodeEditorOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [status, setStatus] = useState(initialStatus);
+  const [codeTestResult, setCodeTestResult] = useState<CodeTestResult | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const contextFileInputRef = useRef<HTMLInputElement>(null);
   const pseudocodeFileInputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +127,7 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
   const handleProcessFiles = async () => {
     setStatus('loading');
     setAnalysisResult(null);
+    setCodeTestResult(null);
 
     try {
       const formData = new FormData();
@@ -142,12 +154,11 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
         }
       }
 
+      // First get the code generation
       const response = await fetch('http://localhost:8000/api/v1/getResponse/get-response', {
         method: 'POST',
         body: formData
       });
-
-      console.log('Response:', response);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -156,22 +167,60 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
       
       const result = await response.json();
       console.log('Process files response:', result);
+
+      // Now send the generated code to pytest
+      const testResponse = await fetch('http://localhost:8000/api/v1/pytest/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: result.code_generation.code,
+          test_code: result.code_generation.testing_code
+        })
+      });
+
+      if (!testResponse.ok) {
+        throw new Error('Failed to run tests');
+      }
+
+      const testResult = await testResponse.json();
+      console.log('Test results:', testResult);
+
+      const processedTestResults: CodeTestResult[] = testResult.report.tests.map((test: any) => {
+        const isTestPassed = test.outcome === 'passed';
+        return {
+          testName: test.nodeid,
+          lineNumber: test.lineno,
+          passed: isTestPassed,
+          // Only include crash information if the test failed (outcome !== 'passed')
+          crash: !isTestPassed ? {
+            line: test.call.crash.lineno,
+            message: test.call.crash.message
+          } : undefined
+        };
+      });
       
       setStatus('completed');
       setAnalysisResult(result);
+      setCodeTestResult(processedTestResults[0]); // Save first test result for now
       onQuestionUpdate({ 
         pseudocode: pseudocodeContent,
         context: contextContent,
         status: 'completed',
         contextFiles: [...contextFiles.filter(f => f.name !== 'context.txt')],
         pseudocodeFiles: [...pseudocodeFiles.filter(f => f.name !== 'pseudocode.txt')],
-        result: result
+        result: {
+          ...result,
+          testResults: processedTestResults
+        }
       });
 
     } catch (error) {
       console.error('Analysis failed:', error);
       setStatus('error');
       setAnalysisResult(null);
+      setCodeTestResult(null);
       onQuestionUpdate({ status: 'error' });
     }
   };
@@ -399,7 +448,7 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
                 height="100%"
                 defaultLanguage="plaintext"
                 value={contextContent}
-                onChange={(value) => setContextContent(value || '')}
+                onChange={(value: any) => setContextContent(value || '')}
                 theme="vs-dark"
                 className="pt-1"
                 options={{
@@ -435,7 +484,7 @@ export default function FileUploader({ onQuestionUpdate, initialStatus }: Omit<F
                 height="100%"
                 defaultLanguage="plaintext"
                 value={pseudocodeContent}
-                onChange={(value) => setPseudocodeContent(value || '')}
+                onChange={(value: any) => setPseudocodeContent(value || '')}
                 theme="vs-dark"
                 className="pt-1"
                 options={{
