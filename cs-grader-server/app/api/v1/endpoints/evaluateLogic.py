@@ -1,6 +1,6 @@
 from app.core.chroma_middleware import ChromaMiddleware
 from fastapi import APIRouter, HTTPException
-from app.core.config import COHERE_CLIENT
+from app.core.config import COHERE_CLIENT, settings
 from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, SimilarSolution, LogicalAnalysis
 from app.core.logging import setup_logger
 import re
@@ -48,22 +48,6 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         Similar Algorithms:
         {similar_solutions_context}
         
-        Please evaluate this pseudocode solution and provide your response in the following JSON format:
-        {{
-            "score": <float between 0 and 1>,
-            "feedback": "<general feedback about the solution>",
-            "logical_analysis": {{
-                "correctness": "<correctness of the solution>",
-                "efficiency": "<efficiency of the solution>",
-                "readability": "<readability of the solution>"
-            }},
-            "potential_issues": [
-                "<issue 1>",
-                "<issue 2>",
-                ...
-            ]
-        }}
-        
         Consider:
         1. Does it correctly address the question?
         2. Is the logical flow sound?
@@ -73,21 +57,48 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         
         Ignore any comments. Only evaluate the correctness of the psuedocode. 
         
-        Provide a detailed evaluation with a score from 0 to 1.
+        Provide a detailed evaluation of the pseudocode.
         """
+        
+        # Define the expected JSON structure
+        prompt_structure = {
+            "type": "object",
+            "properties": {
+                "feedback": {"type": "string"},
+                "logical_analysis": {
+                    "type": "object",
+                    "properties": {
+                        "correctness": {"type": "string"},
+                        "efficiency": {"type": "string"},
+                        "readability": {"type": "string"}
+                    },
+                    "required": ["correctness", "efficiency", "readability"]
+                },
+                "potential_issues": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                }
+            },
+            "required": ["feedback", "logical_analysis", "potential_issues"]
+        }
 
         logger.debug("Generating evaluation using Cohere")
-        # Generate evaluation using Cohere's generate endpoint
-        response = COHERE_CLIENT.generate(
-            prompt=evaluation_prompt,
-            max_tokens=1000,
-            temperature=0.3,
-            k=0,
-            stop_sequences=[],
-            return_likelihoods='NONE'
+        # Generate evaluation using Cohere's chat endpoint
+        response = COHERE_CLIENT.chat(
+            model=settings.COHERE_MODEL_NAME,
+            messages=[
+                {
+                    "role": "user",
+                    "content": evaluation_prompt
+                }
+            ],
+            response_format={
+                "type": "json_object",
+                "schema": prompt_structure
+            }
         )
 
-        if not response or not response.generations:
+        if not response or not response.message or not response.message.content:
             logger.error("No response generated from Cohere")
             raise HTTPException(
                 status_code=500,
@@ -95,20 +106,12 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
             )
 
         # Parse the response to extract JSON
-        evaluation_text = response.generations[0].text
+        evaluation_text = response.message.content[0].text
         logger.debug(f"Received evaluation text: {evaluation_text[:100]}...")
         
         try:
-            # Extract JSON from the response
-            json_match = re.search(r'\{.*\}', evaluation_text, re.DOTALL)
-            if not json_match:
-                logger.error("No JSON found in response")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Invalid response format from Cohere"
-                )
-            
-            evaluation_json = json.loads(json_match.group(0))
+            # Parse the JSON response directly since it's already in the correct format
+            evaluation_json = json.loads(evaluation_text)
             logger.info(f"Parsed evaluation JSON: {json.dumps(evaluation_json, indent=2)}")
             
             # Create LogicalAnalysis object
@@ -132,8 +135,6 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
                 logger.info(f"Including {len(similar_solutions)} similar solutions in response")
 
             return PseudocodeEvaluationResponse(
-                score=evaluation_json.get('score', 0.5),
-                feedback=evaluation_json.get('feedback', "No detailed feedback available."),
                 logical_analysis=logical_analysis,
                 potential_issues=evaluation_json.get('potential_issues', []),
                 similar_solutions=similar_solutions
