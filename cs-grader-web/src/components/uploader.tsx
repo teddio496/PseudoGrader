@@ -262,6 +262,15 @@ export default function FileUploader({
     setIsContextEditorOpen(false);
   };
 
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64);
+    const byteArrays = new Uint8Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArrays[i] = byteCharacters.charCodeAt(i);
+    }
+    return new Blob([byteArrays], { type: mimeType });
+  }
+
   const handleProcessFiles = async () => {
     setStatus('loading');
     setAnalysisResult(undefined);
@@ -283,7 +292,7 @@ export default function FileUploader({
           if (typeof file.content === 'string' && file.content.startsWith('data:')) {
             // Handle base64 data URLs for images
             const base64Data = file.content.split(',')[1];
-            fileBlob = base64Data ? new Blob([Buffer.from(base64Data, 'base64')], { type: file.type }) : new Blob([''], { type: file.type });
+            fileBlob = base64Data ? base64ToBlob(base64Data, file.type) : new Blob([''], { type: file.type });
           } else {
             // Handle text or other content
             fileBlob = new Blob([file.content], { type: file.type });
