@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException
 from app.core.config import COHERE_CLIENT, settings
 from app.api.v1.models import PseudocodeEvaluationRequest, PseudocodeEvaluationResponse, SimilarSolution, LogicalAnalysis
 from app.core.logging import setup_logger
-import re
 import json
 
 logger = setup_logger("pseudocode")

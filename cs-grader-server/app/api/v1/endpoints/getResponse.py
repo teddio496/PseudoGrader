@@ -32,15 +32,26 @@ async def get_complete_response(
         logger.info("Processing input files...")
         async with httpx.AsyncClient(timeout=30.0) as client:
             
-            question_form_data = [
-                ("files", (f.filename, f.file, f.content_type))
-                for f in question_files
-            ]
+            # Save file contents in memory before sending to avoid stream depletion
+            question_form_data = []
+            for f in question_files:
+                # Read the content
+                content = await f.read()
+                # Reset the file pointer
+                await f.seek(0)
+                question_form_data.append(
+                    ("files", (f.filename, content, f.content_type))
+                )
 
-            pseudocode_form_data = [
-                ("files", (f.filename, f.file, f.content_type))
-                for f in pseudocode_files
-            ]
+            pseudocode_form_data = []
+            for f in pseudocode_files:
+                # Read the content
+                content = await f.read()
+                # Reset the file pointer
+                await f.seek(0)
+                pseudocode_form_data.append(
+                    ("files", (f.filename, content, f.content_type))
+                )
                         
             # Run both inputToText calls concurrently
             async def process_question_files():

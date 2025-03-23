@@ -89,6 +89,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             IMPORTANT: Do NOT include the original Python code in the test cases.
             When importing the original code, use the following line EXACTLY as is:
             from main import *
+            import random
             DO NOT IMPORT THE ORIGINAL CODE IN ANY OTHER WAY.
             """
 
@@ -97,7 +98,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
                 "properties": {
                     "imports": {
                         "type": "string",
-                        "description": "Import statement starting with 'from main import *'"
+                        "description": "Import statement starting with 'from main import *' and 'import random'"
                     },
                     "tests": {
                         "type": "string",

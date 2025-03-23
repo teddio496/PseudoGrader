@@ -58,6 +58,7 @@ interface AnalysisResult {
       readability: string;
     };
     potential_issues: string[];
+    similar_solutions: string[];
   };
   result?: {
     testResults: CodeTestResult[];
@@ -795,6 +796,17 @@ export default function FileUploader({
                           ))}
                         </ul>
                       </div>
+                      {analysisResult.logic_evaluation?.similar_solutions && 
+                       analysisResult.logic_evaluation.similar_solutions.length > 0 && (
+                        <div>
+                          <h4 className="text-2xl text-[#E0E0E0] font-medium mb-2 mt-4">Similar Solutions</h4>
+                          <ul className="list-disc list-inside text-[#B0B0B0]">
+                            {analysisResult.logic_evaluation.similar_solutions.map((issue, index) => (
+                              <li key={index}>{issue}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div> 
