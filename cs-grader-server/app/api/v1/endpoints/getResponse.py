@@ -31,16 +31,17 @@ async def get_complete_response(
         # Process input files
         logger.info("Processing input files...")
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Process question files
-            question_form_data = {}
-            for i, f in enumerate(question_files):
-                question_form_data[f"files"] = (f.filename, f.file, f.content_type)
             
-            # Process pseudocode files
-            pseudocode_form_data = {}
-            for i, f in enumerate(pseudocode_files):
-                pseudocode_form_data[f"files"] = (f.filename, f.file, f.content_type)
-            
+            question_form_data = [
+                ("files", (f.filename, f.file, f.content_type))
+                for f in question_files
+            ]
+
+            pseudocode_form_data = [
+                ("files", (f.filename, f.file, f.content_type))
+                for f in pseudocode_files
+            ]
+                        
             # Run both inputToText calls concurrently
             async def process_question_files():
                 response = await client.post(
@@ -67,6 +68,9 @@ async def get_complete_response(
             # Extract and combine content from responses
             question_text = "\n".join(question_processed["content"])
             pseudocode_text = "\n".join(pseudocode_processed["content"])
+
+            print(question_text)
+            print(pseudocode_text)
             
             # Combine the results
             processed_input = {
