@@ -1,8 +1,51 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FileUploader from "@/components/uploader";
 import Sidebar from "@/components/sidebar";
+
+interface FileItem {
+  name: string;
+  content: string | ArrayBuffer;
+  type: string;
+  preview?: string;
+}
+
+interface AnalysisResult {
+  input_processing: {
+    question: {
+      content: string[];
+    };
+    pseudocode: {
+      content: string[];
+    };
+  };
+  code_generation: {
+    code: string;
+    testing_code: string;
+  };
+  logic_evaluation: {
+    score: number;
+    feedback: string;
+    logical_analysis: {
+      correctness: string;
+      efficiency: string;
+      readability: string;
+    };
+    potential_issues: string[];
+  };
+  result?: {
+    testResults: {
+      testName: string;
+      lineNumber: number;
+      passed: boolean;
+      crash?: {
+        line: number;
+        message: string;
+      };
+    }[];
+  };
+}
 
 interface Question {
   id: string;
@@ -10,26 +53,85 @@ interface Question {
   status: 'pending' | 'loading' | 'completed' | 'error';
   context: string;
   pseudocode: string;
+  contextFiles: FileItem[];
+  pseudocodeFiles: FileItem[];
+  result?: {
+    [key: string]: unknown;
+  };
+  analysisResult?: AnalysisResult;
+  editableCode?: string;
+  editableTests?: string;
 }
 
 export default function Home() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
 
+  const createEmptyQuestion = (): Question => ({
+    id: `q-${Date.now()}`,
+    title: `Question ${questions.length + 1}`,
+    status: 'pending',
+    context: '',
+    pseudocode: '',
+    contextFiles: [],
+    pseudocodeFiles: [],
+  });
+
+  // Load questions from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedQuestions = localStorage.getItem('questions');
+      const savedActiveId = localStorage.getItem('activeQuestionId');
+      
+      if (savedQuestions) {
+        setQuestions(JSON.parse(savedQuestions));
+      }
+      if (savedActiveId) {
+        setActiveQuestionId(savedActiveId);
+      }
+    } catch (error) {
+      console.error('Error loading from localStorage:', error);
+      // If there's an error loading from localStorage, start fresh
+      setQuestions([]);
+      setActiveQuestionId(null);
+    }
+  }, []);
+
+  // Save questions to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('questions', JSON.stringify(questions));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  }, [questions]);
+
+  // Save active question ID whenever it changes
+  useEffect(() => {
+    try {
+      if (activeQuestionId) {
+        localStorage.setItem('activeQuestionId', activeQuestionId);
+      }
+    } catch (error) {
+      console.error('Error saving active ID to localStorage:', error);
+    }
+  }, [activeQuestionId]);
+
   const handleAddQuestion = () => {
-    const newQuestion: Question = {
-      id: `q-${Date.now()}`,
-      title: `Question ${questions.length + 1}`,
-      status: 'pending',
-      context: '',
-      pseudocode: ''
-    };
+    const newQuestion = createEmptyQuestion();
     setQuestions([...questions, newQuestion]);
     setActiveQuestionId(newQuestion.id);
   };
 
   const handleQuestionSelect = (id: string) => {
     setActiveQuestionId(id);
+  };
+
+  const handleDeleteQuestion = (id: string) => {
+    setQuestions(questions.filter(q => q.id !== id));
+    if (activeQuestionId === id) {
+      setActiveQuestionId(null);
+    }
   };
 
   const handleQuestionUpdate = (questionId: string, updates: Partial<Question>) => {
@@ -47,13 +149,22 @@ export default function Home() {
         activeQuestionId={activeQuestionId}
         onQuestionSelect={handleQuestionSelect}
         onAddQuestion={handleAddQuestion}
+        onDeleteQuestion={handleDeleteQuestion}
       />
-      <div className="flex-1 p-6">
+      <div className="flex-1">
         {activeQuestion ? (
           <FileUploader
             key={activeQuestion.id}
+            questionId={activeQuestion.id}
             onQuestionUpdate={(updates) => handleQuestionUpdate(activeQuestion.id, updates)}
             initialStatus={activeQuestion.status}
+            initialContext={activeQuestion.context}
+            initialPseudocode={activeQuestion.pseudocode}
+            initialContextFiles={activeQuestion.contextFiles}
+            initialPseudocodeFiles={activeQuestion.pseudocodeFiles}
+            initialAnalysisResult={activeQuestion.analysisResult}
+            initialEditableCode={activeQuestion.editableCode}
+            initialEditableTests={activeQuestion.editableTests}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
