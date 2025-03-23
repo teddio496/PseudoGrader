@@ -1,6 +1,7 @@
+from cohere import JsonObjectResponseFormatV2, UserChatMessageV2
 from fastapi import APIRouter, HTTPException
 from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
-from app.core.config import settings, GEMINI_MODEL
+from app.core.config import settings, GEMINI_MODEL, COHERE_CLIENT
 from app.core.logging import setup_logger
 import google.generativeai as genai
 import asyncio
@@ -90,9 +91,13 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             # Start both API calls concurrently
             # Create async functions to wrap the synchronous generate_content calls
             async def generate_code():
-                return GEMINI_MODEL.generate_content(
-                    contents=[{"text": code_prompt}],
-                    generation_config=generation_config
+                return await COHERE_CLIENT.chat(
+                    model=settings.COHERE_MODEL_NAME,
+                    messages=[
+                        UserChatMessageV2(
+                            content=code_prompt
+                        )
+                    ]
                 )
                 
             async def generate_tests():
@@ -108,10 +113,15 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             )
             
             # Process code response
-            if not code_response.text:
-                raise HTTPException(status_code=500, detail="No code generated")
-            
-            python_code = code_response.text.strip()
+            if not code_response or not code_response.message or not code_response.message.content:
+                logger.error("No response generated from Cohere")
+                raise HTTPException(
+                    status_code=500,
+                    detail="No response generated from Cohere"
+                )
+
+            # Parse the response to extract JSON
+            python_code = code_response.message.content[0].text
             python_code = python_code.replace("```python", "").replace("```", "").strip()
             
             # Process test response
