@@ -343,6 +343,7 @@ export default function FileUploader({
           testResults: result.result?.testResults || []
         }
       });
+      handleRunTests();
 
     } catch (error) {
       console.error('Analysis failed:', error);
