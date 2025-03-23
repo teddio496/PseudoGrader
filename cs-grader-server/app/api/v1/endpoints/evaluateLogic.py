@@ -23,20 +23,24 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
             question=request.question,
             n_results=5
         )
-        logger.info(f"Found {len(suggested_algorithms)} suggested algorithms")
+        logger.info(f"Found {len(suggested_algorithms)} suggested algorithms. There are {len(list(filter(lambda x: x['similarity'] >= 0.4, suggested_algorithms)))} similar solutions.")
 
         # Create a prompt for evaluation with similar solutions as context
-        similar_solutions_context = ""
+        similar_solutions_context = "Similar Solutions Found:\n" if suggested_algorithms else "No similar solutions found."
+        similar_solutions = []
+        
         if suggested_algorithms:
-            similar_solutions_context = "\nSimilar Solutions Found:\n"
             for i, solution in enumerate(suggested_algorithms, 1):
-                if solution['similarity'] >= 0.5:
+                if solution['similarity'] >= 0.4:
                     similar_solutions_context += f"\nSolution {i} (Similarity: {solution['similarity']:.2f}):\n"
                     similar_solutions_context += f"Question: {solution['question']}\n"
                     similar_solutions_context += f"Pseudocode:\n{solution['pseudocode']}\n"
-
-        if not similar_solutions_context:
-            similar_solutions_context = "No similar solutions found."
+                    similar_solutions.append(SimilarSolution(
+                        question=solution['question'],
+                        pseudocode=solution['pseudocode'],
+                        similarity=solution['similarity']
+                    ))
+            logger.info(f"Including {len(similar_solutions)} similar solutions in response")
 
         # Create a structured prompt for evaluation
         evaluation_prompt = f"""
@@ -112,7 +116,7 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         try:
             # Parse the JSON response directly since it's already in the correct format
             evaluation_json = json.loads(evaluation_text)
-            logger.info(f"Parsed evaluation JSON: {json.dumps(evaluation_json, indent=2)}")
+            # logger.info(f"Parsed evaluation JSON: {json.dumps(evaluation_json, indent=2)}")
             
             # Create LogicalAnalysis object
             logical_analysis_dict = evaluation_json.get('logical_analysis', {})
@@ -122,18 +126,6 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
                 readability=logical_analysis_dict.get('readability', "No readability analysis available.")
             )
             
-            # Convert suggested algorithms to SimilarSolution objects
-            similar_solutions = []
-            if suggested_algorithms:
-                for algo in suggested_algorithms:
-                    if algo['similarity'] >= 0.5:  # Only include reasonably similar solutions
-                        similar_solutions.append(SimilarSolution(
-                            question=algo['question'],
-                            pseudocode=algo['pseudocode'],
-                            similarity=algo['similarity']
-                        ))
-                logger.info(f"Including {len(similar_solutions)} similar solutions in response")
-
             return PseudocodeEvaluationResponse(
                 logical_analysis=logical_analysis,
                 potential_issues=evaluation_json.get('potential_issues', []),
@@ -142,6 +134,7 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {str(e)}")
+            logger.error(f"The json response was: {evaluation_text}")
             raise HTTPException(
                 status_code=500,
                 detail="Failed to parse evaluation response"

@@ -54,4 +54,4 @@ genai.configure(
 GEMINI_MODEL = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
 
 # Configure Cohere API
-COHERE_CLIENT = cohere.ClientV2(api_key=settings.COHERE_API_KEY) 
+COHERE_CLIENT = cohere.ClientV2(api_key=settings.COHERE_API_KEY, log_warning_experimental_features=False)

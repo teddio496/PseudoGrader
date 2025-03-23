@@ -2,6 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.api import api_router
+from app.core.logging import setup_logger
+import logging
+
+# Set up logger
+logger = setup_logger("main")
+logger.setLevel(logging.DEBUG)  # Set to debug level
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

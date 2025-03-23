@@ -23,31 +23,16 @@ class ChromaMiddleware:
             response = COHERE_CLIENT.embed(
                 texts=[text],
                 model=settings.COHERE_EMBEDDING_MODEL,
-                input_type="search_query"
+                input_type="search_query",
+                embedding_types=["float"]
             )
             
-            # Extract the embedding directly using dictionary conversion to avoid type errors
             if hasattr(response, "embeddings") and response.embeddings:
-                # Convert response to dictionary to avoid type issues
-                response_dict = vars(response)
-                embeddings_value = response_dict.get('embeddings')
-                
-                if embeddings_value and isinstance(embeddings_value, list) and len(embeddings_value) > 0:
-                    first_embedding = embeddings_value[0]
-                    # Convert to list if it's not already
-                    if isinstance(first_embedding, list):
-                        return cast(List[float], first_embedding)
-                    else:
-                        # Try different conversion methods
-                        try:
-                            if hasattr(first_embedding, 'tolist'):
-                                return first_embedding.tolist()
-                            return cast(List[float], list(first_embedding))
-                        except Exception as e:
-                            logger.error(f"Failed to convert embedding to list: {e}")
-            
-            logger.error("Could not extract embedding from response")
-            return []
+                first_embedding = response.embeddings.float_[0]
+                return first_embedding
+            else:
+                logger.error("Could not extract embedding from response")
+                return []
         except Exception as e:
             logger.error(f"Embedding generation failed: {e}")
             return []

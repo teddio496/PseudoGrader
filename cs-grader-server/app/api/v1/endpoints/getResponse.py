@@ -36,26 +36,33 @@ async def get_complete_response(
             for i, f in enumerate(question_files):
                 question_form_data[f"files"] = (f.filename, f.file, f.content_type)
             
-            # Call inputToText endpoint for question files
-            question_response = await client.post(
-                f"{base_url}/api/v1/inputToText/files-to-text",
-                files=question_form_data
-            )
-            question_response.raise_for_status()
-            question_processed = question_response.json()
-            
             # Process pseudocode files
             pseudocode_form_data = {}
             for i, f in enumerate(pseudocode_files):
                 pseudocode_form_data[f"files"] = (f.filename, f.file, f.content_type)
             
-            # Call inputToText endpoint for pseudocode files
-            pseudocode_response = await client.post(
-                f"{base_url}/api/v1/inputToText/files-to-text",
-                files=pseudocode_form_data
+            # Run both inputToText calls concurrently
+            async def process_question_files():
+                response = await client.post(
+                    f"{base_url}/api/v1/inputToText/files-to-text",
+                    files=question_form_data
+                )
+                response.raise_for_status()
+                return response.json()
+            
+            async def process_pseudocode_files():
+                response = await client.post(
+                    f"{base_url}/api/v1/inputToText/files-to-text",
+                    files=pseudocode_form_data
+                )
+                response.raise_for_status()
+                return response.json()
+            
+            # Run both requests concurrently
+            question_processed, pseudocode_processed = await asyncio.gather(
+                process_question_files(),
+                process_pseudocode_files()
             )
-            pseudocode_response.raise_for_status()
-            pseudocode_processed = pseudocode_response.json()
             
             # Extract and combine content from responses
             question_text = "\n".join(question_processed["content"])

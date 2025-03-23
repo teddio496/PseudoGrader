@@ -3,14 +3,13 @@ from typing import Dict, Any, List, Optional
 from google.cloud import vision
 import os
 from app.core.config import settings
-import logging
 from app.core.fileToText import process_file_to_text, MAX_FILE_SIZE
+from app.core.logging import setup_logger
 
 router = APIRouter()
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger("input_to_text")
 
 # Set Google Cloud credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
