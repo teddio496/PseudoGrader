@@ -85,18 +85,11 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             
             From analyzing the pseudocode above, create comprehensive pytest test cases to validate the Python implementation.
             Focus on testing functionality, edge cases, and expected behavior of the algorithm described in the pseudocode.
-            
-            You MUST respond with a JSON object containing two fields:
-            1. "imports" - this should be exactly the string "from main import *"
-            2. "tests" - the complete pytest test cases without any explanations
-            
-            The JSON response should have this format:
-            {{
-              "imports": "from main import *",
-              "tests": "def test_example1():\\n    assert function(input) == expected_output\\n    ..."
-            }}
-            
-            Do not include any markdown code blocks or explanations in your response.
+            Return ONLY the pytest test cases, no explanations or additional text.
+            IMPORTANT: Do NOT include the original Python code in the test cases.
+            When importing the original code, use the following line EXACTLY as is:
+            from main import *
+            DO NOT IMPORT THE ORIGINAL CODE IN ANY OTHER WAY.
             """
 
             prompt_structure = {
