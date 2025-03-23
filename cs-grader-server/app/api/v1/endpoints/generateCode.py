@@ -5,6 +5,7 @@ from app.core.config import settings, GEMINI_MODEL, COHERE_CLIENT
 from app.core.logging import setup_logger
 import google.generativeai as genai
 import asyncio
+import json
 
 router = APIRouter()
 logger = setup_logger("generateCode")
@@ -84,29 +85,54 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             
             From analyzing the pseudocode above, create comprehensive pytest test cases to validate the Python implementation.
             Focus on testing functionality, edge cases, and expected behavior of the algorithm described in the pseudocode.
-            Return ONLY the pytest test cases, no explanations or additional text.
-            IMPORTANT: Do NOT include the original Python code in the test cases.
-            When importing the original code, use the following line EXACTLY as is:
-            from main import *
-            DO NOT IMPORT THE ORIGINAL CODE IN ANY OTHER WAY.
+            
+            You MUST respond with a JSON object containing two fields:
+            1. "imports" - this should be exactly the string "from main import *"
+            2. "tests" - the complete pytest test cases without any explanations
+            
+            The JSON response should have this format:
+            {{
+              "imports": "from main import *",
+              "tests": "def test_example1():\\n    assert function(input) == expected_output\\n    ..."
+            }}
+            
+            Do not include any markdown code blocks or explanations in your response.
             """
+
+            prompt_structure = {
+                "type": "object",
+                "properties": {
+                    "imports": {
+                        "type": "string",
+                        "description": "Import statement starting with 'from main import *'"
+                    },
+                    "tests": {
+                        "type": "string",
+                        "description": "Complete pytest test cases for the implementation"
+                    }
+                },
+                "required": ["imports", "tests"]
+            }
             
             # Start both API calls concurrently
             # Create async functions to wrap the synchronous generate_content calls
             async def generate_code():
+                return GEMINI_MODEL.generate_content(
+                    contents=[{"text": code_prompt}],
+                    generation_config=generation_config
+                )
+                
+            async def generate_tests():
                 return await COHERE_CLIENT.chat(
                     model=settings.COHERE_MODEL_NAME,
                     messages=[
                         UserChatMessageV2(
-                            content=code_prompt
+                            content=test_prompt
                         )
-                    ]
-                )
-                
-            async def generate_tests():
-                return GEMINI_MODEL.generate_content(
-                    contents=[{"text": test_prompt}],
-                    generation_config=generation_config
+                    ],
+                    response_format=JsonObjectResponseFormatV2(
+                        schema=prompt_structure
+                    )
                 )
                 
             # Run both tasks concurrently
@@ -116,23 +142,66 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             )
             
             # Process code response
-            if not code_response or not code_response.message or not code_response.message.content:
+            if not code_response or not code_response.text:
+                logger.error("No response generated from Gemini")
+                raise HTTPException(
+                    status_code=500,
+                    detail="No response generated from Gemini"
+                )
+
+            # Parse the response to extract code
+            python_code = code_response.text.strip()
+            python_code = python_code.replace("```python", "").replace("```", "").strip()
+            
+            # Process test response
+            if not test_response or not test_response.message or not test_response.message.content:
                 logger.error("No response generated from Cohere")
                 raise HTTPException(
                     status_code=500,
                     detail="No response generated from Cohere"
                 )
-
-            # Parse the response to extract JSON
-            python_code = code_response.message.content[0].text
-            python_code = python_code.replace("```python", "").replace("```", "").strip()
             
-            # Process test response
-            if not test_response.text:
-                raise HTTPException(status_code=500, detail="No test cases generated")
-            
-            testing_code = test_response.text.strip()
-            testing_code = testing_code.replace("```python", "").replace("```", "").strip()
+            try:
+                # Extract the tests from the JSON response
+                content_text = None
+                message_content = test_response.message.content
+                
+                # Check if content is a list (which it typically is in Cohere responses)
+                if isinstance(message_content, list) and len(message_content) > 0:
+                    for content in message_content:
+                        if hasattr(content, 'text') and content.text:
+                            content_text = content.text
+                            break
+                
+                if not content_text:
+                    logger.error("No text content found in Cohere response")
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Invalid response format from Cohere"
+                    )
+                
+                try:
+                    # Try to parse as JSON
+                    test_json = json.loads(content_text)
+                    imports = test_json.get("imports", "from main import *")
+                    tests = test_json.get("tests", "")
+                    
+                    # Combine imports and tests
+                    testing_code = f"{imports}\n\n{tests}"
+                except json.JSONDecodeError:
+                    # If not valid JSON, use a fallback approach
+                    if "from main import *" not in content_text:
+                        testing_code = "from main import *\n\n" + content_text
+                    else:
+                        testing_code = content_text
+                
+                testing_code = testing_code.replace("```python", "").replace("```", "").strip()
+            except Exception as e:
+                logger.error(f"Error processing test response: {str(e)}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to parse test response: {str(e)}"
+                )
             
             # Return the combined response
             return PromptResponse(
