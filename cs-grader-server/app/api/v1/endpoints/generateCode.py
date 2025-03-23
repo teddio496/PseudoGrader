@@ -86,7 +86,7 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             Focus on testing functionality, edge cases, and expected behavior of the algorithm described in the pseudocode.
             Return ONLY the pytest test cases, no explanations or additional text.
             IMPORTANT: Do NOT include the original Python code in the test cases.
-            When importing the original code, use the following line:
+            When importing the original code, use the following line EXACTLY as is:
             from main import *
             DO NOT IMPORT THE ORIGINAL CODE IN ANY OTHER WAY.
             """
