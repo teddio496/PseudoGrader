@@ -247,7 +247,7 @@ export default function FileUploader({
         preview: file.type.startsWith('image/') ? file.content as string : undefined
       })));
     }
-  }, []);
+  });
 
   const handleContextSave = () => {
     const contextFile: FileItem = {
