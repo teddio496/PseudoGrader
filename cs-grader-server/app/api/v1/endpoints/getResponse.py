@@ -124,8 +124,18 @@ async def get_complete_response(
             # Run both requests concurrently
             code_response, evaluation_response = await asyncio.gather(
                 generate_code(),
-                evaluate_logic()
+                evaluate_logic(),
+                return_exceptions=True
             )
+            
+            # Handle exceptions from concurrent tasks
+            if isinstance(code_response, Exception):
+                logger.error(f"Error in code generation: {str(code_response)}")
+                code_response = {"error": str(code_response), "status": "failed"}
+                
+            if isinstance(evaluation_response, Exception):
+                logger.error(f"Error in logic evaluation: {str(evaluation_response)}")
+                evaluation_response = {"error": str(evaluation_response), "status": "failed"}
         
         # Step 4: Combine all results
         return {

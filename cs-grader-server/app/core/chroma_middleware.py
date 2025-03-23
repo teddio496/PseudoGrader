@@ -15,6 +15,7 @@ class ChromaMiddleware:
             metadata={"hnsw:space": "cosine"}
         )
         logger.info(f"Connected to ChromaDB collection: {self.collection.name}")
+        logger.info(f"Collection stats: {self.get_collection_stats()}")
 
     async def _generate_embedding(self, text: str) -> List[float]:
         """Generate embedding using Cohere API"""
