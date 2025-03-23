@@ -837,8 +837,17 @@ export default function FileUploader({
 
       {/* File Preview Modal */}
       {selectedFile && (
-        <div className="fixed inset-0 bg-black opacity-50 flex items-center justify-center p-4 flex-grow" onClick={() => setSelectedFile(null)}>
-          <div className="rounded-lg w-full max-w-4xl bg-[#222222] opacity-100 p-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          {/* Background overlay */}
+          <div
+            className="absolute inset-0 bg-black opacity-50"
+            onClick={() => setSelectedFile(null)}
+          ></div>
+          {/* Modal content */}
+          <div
+            className="relative rounded-lg w-full max-w-4xl bg-[#222222] p-4"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="mb-4 flex justify-between items-center">
               <h3 className="text-[#E0E0E0] text-lg">{selectedFile.name}</h3>
               <button
@@ -846,13 +855,24 @@ export default function FileUploader({
                 className="text-[#E0E0E0] hover:text-[#B0B0B0]"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
             <div className="bg-[#121212] rounded p-4 max-h-[600px] overflow-auto">
               {selectedFile.type.startsWith('image/') ? (
-                <Image src={selectedFile.preview || ''} alt={selectedFile.name} width={800} height={600} className="max-w-full h-auto" />
+                <Image
+                  src={selectedFile.preview || ''}
+                  alt={selectedFile.name}
+                  width={800}
+                  height={600}
+                  className="max-w-full h-auto"
+                />
               ) : selectedFile.type === 'text/plain' ? (
                 <pre className="text-[#E0E0E0] whitespace-pre-wrap">{selectedFile.content as string}</pre>
               ) : (
