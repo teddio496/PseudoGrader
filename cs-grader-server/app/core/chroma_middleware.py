@@ -16,11 +16,11 @@ class ChromaMiddleware:
         )
         logger.info(f"Connected to ChromaDB collection: {self.collection.name}")
 
-    def _generate_embedding(self, text: str) -> List[float]:
+    async def _generate_embedding(self, text: str) -> List[float]:
         """Generate embedding using Cohere API"""
         logger.debug(f"Generating embedding for text: {text[:100]}...")
         try:
-            response = COHERE_CLIENT.embed(
+            response = await COHERE_CLIENT.embed(
                 texts=[text],
                 model=settings.COHERE_EMBEDDING_MODEL,
                 input_type="search_query",
@@ -37,10 +37,10 @@ class ChromaMiddleware:
             logger.error(f"Embedding generation failed: {e}")
             return []
 
-    def find_algorithms_by_question(self, question: str, n_results: int = 5) -> list[dict[str, Any]]:
+    async def find_algorithms_by_question(self, question: str, n_results: int = 5) -> list[dict[str, Any]]:
         """Find algorithms by question"""
         logger.info(f"Searching for algorithms matching question: {question[:100]}...")
-        question_embedding = self._generate_embedding(question)
+        question_embedding = await self._generate_embedding(question)
         if not question_embedding:
             logger.error("Failed to generate question embedding")
             return []

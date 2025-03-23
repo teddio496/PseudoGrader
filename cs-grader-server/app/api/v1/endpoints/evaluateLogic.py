@@ -1,3 +1,4 @@
+from cohere import JsonObjectResponseFormatV2, UserChatMessageV2
 from app.core.chroma_middleware import ChromaMiddleware
 from fastapi import APIRouter, HTTPException
 from app.core.config import COHERE_CLIENT, settings
@@ -19,7 +20,7 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         logger.info(f"Evaluating pseudocode for question: {request.question[:100]}...")
         
         # Find suggested algorithms from the database
-        suggested_algorithms = chroma_middleware.find_algorithms_by_question(
+        suggested_algorithms = await chroma_middleware.find_algorithms_by_question(
             question=request.question,
             n_results=5
         )
@@ -88,18 +89,16 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
 
         logger.debug("Generating evaluation using Cohere")
         # Generate evaluation using Cohere's chat endpoint
-        response = COHERE_CLIENT.chat(
+        response = await COHERE_CLIENT.chat(
             model=settings.COHERE_MODEL_NAME,
             messages=[
-                {
-                    "role": "user",
-                    "content": evaluation_prompt
-                }
+                UserChatMessageV2(
+                    content=evaluation_prompt
+                )
             ],
-            response_format={
-                "type": "json_object",
-                "schema": prompt_structure
-            }
+            response_format=JsonObjectResponseFormatV2(
+                json_schema=prompt_structure
+            )
         )
 
         if not response or not response.message or not response.message.content:

@@ -3,9 +3,10 @@ from app.api.v1.models import PromptRequest, PromptResponse, GeminiErrorResponse
 from app.core.config import settings, GEMINI_MODEL
 from app.core.logging import setup_logger
 import google.generativeai as genai
+import asyncio
 
 router = APIRouter()
-logger = setup_logger("gemini")
+logger = setup_logger("generateCode")
 
 @router.post("/generate", response_model=PromptResponse, responses={
     500: {"model": GeminiErrorResponse}
@@ -43,13 +44,13 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             genai.configure(api_key=settings.GOOGLE_API_KEY, transport="rest")
             
             # Use preset generation config
-            generation_config = {
-                "temperature": 0.0,     
-                "top_p": 1.0,       
-                "top_k": 0,     
-                "candidate_count": 1,
-                "max_output_tokens": 1000
-            }
+            generation_config = genai.GenerationConfig(
+                temperature=0.0,     
+                top_p=1.0,       
+                top_k=0,     
+                candidate_count=1,
+                max_output_tokens=1000
+            )
             
             # Prepare the code generation prompt
             code_prompt = f"""
@@ -87,15 +88,23 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             """
             
             # Start both API calls concurrently
-            code_response, test_response = await asyncio.gather(
-                GEMINI_MODEL.generate_content(
+            # Create async functions to wrap the synchronous generate_content calls
+            async def generate_code():
+                return GEMINI_MODEL.generate_content(
                     contents=[{"text": code_prompt}],
                     generation_config=generation_config
-                ),
-                GEMINI_MODEL.generate_content(
+                )
+                
+            async def generate_tests():
+                return GEMINI_MODEL.generate_content(
                     contents=[{"text": test_prompt}],
                     generation_config=generation_config
                 )
+                
+            # Run both tasks concurrently
+            code_response, test_response = await asyncio.gather(
+                generate_code(),
+                generate_tests()
             )
             
             # Process code response
