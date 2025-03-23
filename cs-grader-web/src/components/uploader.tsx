@@ -518,8 +518,8 @@ export default function FileUploader({
           </div>
 
           {/* Pseudocode Section */}
-          <div className="flex-1 bg-[#222222] rounded-lg shadow p-2 min-h-0 overflow-hidden">
-            <div className="flex justify-between items-center mb-2">
+          <div className="flex-1 bg-[#222222] rounded-lg shadow p-4 min-h-0 overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-[#E0E0E0]">Pseudocode</h2>
               <div className="flex gap-2">
                 <button 
@@ -550,8 +550,8 @@ export default function FileUploader({
               className="hidden"
               ref={pseudocodeFileInputRef}
             />
-            <div className="flex flex-col h-full">
-              <div className={`flex-1 bg-[#121212] rounded p-2 overflow-y-auto ${pseudocodeFiles.length > 0 ? 'mb-2' : ''}`}>
+            <div className="flex flex-col h-[calc(100%-100px)]">
+              <div className={`flex-1 bg-[#121212] rounded-lg p-4 overflow-y-auto mb-4`}>
                 {isPseudocodeEditorOpen ? (
                   <div className="h-full border border-[#444444] rounded-lg overflow-hidden">
                     <Editor
