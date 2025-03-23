@@ -20,14 +20,12 @@ client = vision.ImageAnnotatorClient()
 @router.post("/files-to-text")
 async def input_To_Text(
     files: List[UploadFile] = File(...),
-    request: Request = None
 ) -> Dict[str, Any]:
     """
     Convert multiple image or PDF files to text using Google Cloud Vision API.
     
     Args:
         files (List[UploadFile]): List of image or PDF files to process
-        request (Request): The FastAPI request object for debugging
         
     Returns:
         Dict[str, Any]: A dictionary containing the extracted text for each file
@@ -36,11 +34,6 @@ async def input_To_Text(
         HTTPException: If any file is invalid or processing fails
     """
     try:
-        # Log request details for debugging
-        if request:
-            logger.info(f"Request headers: {request.headers}")
-            logger.info(f"Request method: {request.method}")
-            logger.info(f"Request URL: {request.url}")
         
         if not files:
             logger.error("No files received in request")

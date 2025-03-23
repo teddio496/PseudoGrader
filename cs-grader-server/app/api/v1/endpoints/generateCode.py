@@ -6,7 +6,7 @@ import google.generativeai as genai
 import asyncio
 
 router = APIRouter()
-logger = setup_logger("gemini")
+logger = setup_logger("generateCode")
 
 @router.post("/generate", response_model=PromptResponse, responses={
     500: {"model": GeminiErrorResponse}
@@ -44,13 +44,13 @@ async def generate_response(request: PromptRequest) -> PromptResponse:
             genai.configure(api_key=settings.GOOGLE_API_KEY, transport="rest")
             
             # Use preset generation config
-            generation_config = {
-                "temperature": 0.0,     
-                "top_p": 1.0,       
-                "top_k": 0,     
-                "candidate_count": 1,
-                "max_output_tokens": 1000
-            }
+            generation_config = genai.GenerationConfig(
+                temperature=0.0,     
+                top_p=1.0,       
+                top_k=0,     
+                candidate_count=1,
+                max_output_tokens=1000
+            )
             
             # Prepare the code generation prompt
             code_prompt = f"""
