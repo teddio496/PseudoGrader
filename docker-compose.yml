@@ -1,0 +1,35 @@
+services:
+  server:
+    build: 
+      context: ./cs-grader-server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - CHROMA_DB_PATH=/app/cs-grader-embeddings/chroma_db
+    volumes:
+      - ./cs-grader-embeddings:/app/cs-grader-embeddings
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    networks:
+      - cs-grader-network
+
+  web:
+    build:
+      context: ./cs-grader-web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - server
+    networks:
+      - cs-grader-network
+
+networks:
+  cs-grader-network:
+    driver: bridge 
