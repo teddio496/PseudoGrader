@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "CS Grader API"
 
     # Model Configurations
-    GEMINI_MODEL_NAME: str = "models/gemini-exp-1206"
+    GEMINI_MODEL_NAME: str = "models/gemini-1.5-flash"
     COHERE_MODEL_NAME: str = "command-a-03-2025"
     COHERE_EMBEDDING_MODEL: str = "embed-english-v3.0"
 

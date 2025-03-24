@@ -55,7 +55,10 @@ async def evaluate_psuedocode_logic(request: PseudocodeEvaluationRequest):
         4. Could the solution be improved?
         5. How does it compare to the similar solutions found?
         
-        Ignore any comments. Only evaluate the correctness of the psuedocode. 
+        Do not attempt to fix the psuedocode in your evaluation.
+        If the psuedocode has any issues, say it is incorrect.
+        If the psuedocode does not solve the problem, say that it does not solve the problem.
+        Do not include similar algorithms in the solution if they are not part of the psuedocode.
         
         Provide a detailed evaluation of the pseudocode.
         """
